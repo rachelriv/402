@@ -1,0 +1,16 @@
+{
+  "name": "OSC",
+  "version": "0.0.0",
+  "description": "A simple test to ensure Open Sound Control (OSC) packets are being transmitted from movements detected by the Kinect.",
+  "scripts": {
+    "start": "coffee OSCTest.coffee"
+  },
+  "dependencies": {
+    "osc-receiver": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rachelriv/402"
+  },
+  "author": "Rachel Rivera"
+}
