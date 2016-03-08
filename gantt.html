@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Ricetta GANTT Schedule</title>
+        <title>GANTT Schedule</title>
         <meta charset="utf-8">
         <link href="http://taitems.github.io/jQuery.Gantt/css/style.css" type="text/css" rel="stylesheet">
         <link href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet" type="text/css">
@@ -51,12 +51,87 @@
                 name: "Planning",
                 desc: "Initial Planning",
                 values: [{
-                    from: Date.UTC(2016, 0, 13),
+                    from: Date.UTC(2016, 0, 11),
                     to: Date.UTC(2016, 0, 25),
                     label: "Initial Planning",
                     customClass: "ganttRed"
+                }],
+            }, {
+                name: " ",
+                desc: "Connect System Components",
+                values: [{
+                    from: Date.UTC(2016, 0, 26),
+                    to: Date.UTC(2016, 1, 5),
+                    label: "Connect System Components",
+                    customClass: "ganttRed"
                 }]
-            }],
+
+            }, {
+                name: " ",
+                desc: "Ableton Research",
+                values: [{
+                    from: Date.UTC(2016, 1, 6),
+                    to: Date.UTC(2016, 1, 15),
+                    label: "Ableton Research",
+                    customClass: "ganttRed"
+                }]
+
+            }, {
+                name: "Movement/Sound Mapping",
+                desc: "Initial Mapping",
+                values: [{
+                    from: Date.UTC(2016, 1, 16),
+                    to: Date.UTC(2016, 1, 20),
+                    label: "Initial Mapping",
+                    customClass: "ganttBlue"
+                }],
+            },  {
+                name: "",
+                desc: "Additional Mappings",
+                values: [{
+                    from: Date.UTC(2016, 1, 21),
+                    to: Date.UTC(2016, 2, 1),
+                    label: "Additional Mappings (10+)",
+                    customClass: "ganttBlue"
+                }],
+            }, {
+                name: "",
+                desc: "Looping",
+                values: [{
+                    from: Date.UTC(2016, 2, 2),
+                    to: Date.UTC(2016, 2, 6),
+                    label: "Looping",
+                    customClass: "ganttBlue"
+                }],
+            }, {
+                name: "",
+                desc: "Partition Space",
+                values: [{
+                    from: Date.UTC(2016, 2, 7),
+                    to: Date.UTC(2016, 2, 21),
+                    label: "Partition Space into Different Instruments",
+                    customClass: "ganttBlue"
+                }],
+            }, {
+                name: "",
+                desc: "Additional Mappings",
+                values: [{
+                    from: Date.UTC(2016, 2, 21),
+                    to: Date.UTC(2016, 3, 20),
+                    label: "Additional Mappings (30+)",
+                    customClass: "ganttBlue"
+                }],
+            }, {
+                name: "Testing",
+                desc: "Manual Testing",
+                values: [{
+                    from: Date.UTC(2016, 3, 21),
+                    to: Date.UTC(2016, 4, 5),
+                    label: "Manual Testing",
+                    customClass: "ganttGreen"
+                }],
+            }
+            ],
             navigate: "scroll",
             maxScale: "hours",
             itemsPerPage: 20
