@@ -4,7 +4,8 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-namespace Microsoft.Samples.Kinect.BodyBasics {
+namespace Microsoft.Samples.Kinect.BodyBasics
+{
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
@@ -12,11 +13,12 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
-
+    using System.Threading;
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged {
+    public partial class MainWindow : Window, INotifyPropertyChanged
+    {
         /// <summary>
         /// Radius of drawn hand circles
         /// </summary>
@@ -134,18 +136,26 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// The port to send to: default 22345
         /// </summary>
         private static int oscPort = 22345;
+        private static int oscLooperPort = 22344;
+
+        private static int currentPitch = 0;
+        private static int currentBeat = 0;
+        private static Point lastWristLocation;
 
         /// <summary>
         /// Current status text to display
         /// </summary>
         private UdpWriter osc;
+        private UdpWriter oscLoop;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
-        public MainWindow() {
+        public MainWindow()
+        {
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
+            oscLoop = new UdpWriter(oscHost, oscLooperPort);
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -241,8 +251,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// <summary>
         /// Gets the bitmap to display
         /// </summary>
-        public ImageSource ImageSource {
-            get {
+        public ImageSource ImageSource
+        {
+            get
+            {
                 return this.imageSource;
             }
         }
@@ -250,17 +262,22 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// <summary>
         /// Gets or sets the current status text to display
         /// </summary>
-        public string StatusText {
-            get {
+        public string StatusText
+        {
+            get
+            {
                 return this.statusText;
             }
 
-            set {
-                if (this.statusText != value) {
+            set
+            {
+                if (this.statusText != value)
+                {
                     this.statusText = value;
 
                     // notify any bound elements that the text has changed
-                    if (this.PropertyChanged != null) {
+                    if (this.PropertyChanged != null)
+                    {
                         this.PropertyChanged(this, new PropertyChangedEventArgs("StatusText"));
                     }
                 }
@@ -272,8 +289,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e) {
-            if (this.bodyFrameReader != null) {
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (this.bodyFrameReader != null)
+            {
                 this.bodyFrameReader.FrameArrived += this.Reader_FrameArrived;
             }
         }
@@ -283,14 +302,17 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
-        private void MainWindow_Closing(object sender, CancelEventArgs e) {
-            if (this.bodyFrameReader != null) {
+        private void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            if (this.bodyFrameReader != null)
+            {
                 // BodyFrameReader is IDisposable
                 this.bodyFrameReader.Dispose();
                 this.bodyFrameReader = null;
             }
 
-            if (this.kinectSensor != null) {
+            if (this.kinectSensor != null)
+            {
                 this.kinectSensor.Close();
                 this.kinectSensor = null;
             }
@@ -301,12 +323,17 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
-        private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e) {
+        private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
+        {
             bool dataReceived = false;
 
-            using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame()) {
-                if (bodyFrame != null) {
-                    if (this.bodies == null) {
+            using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame())
+            {
+
+                if (bodyFrame != null)
+                {
+                    if (this.bodies == null)
+                    {
                         this.bodies = new Body[bodyFrame.BodyCount];
                     }
 
@@ -318,35 +345,43 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
                 }
             }
 
-            if (dataReceived) {
-                using (DrawingContext dc = this.drawingGroup.Open()) {
+            if (dataReceived)
+            {
+                using (DrawingContext dc = this.drawingGroup.Open())
+                {
                     // Added a trigger of two open hands to fire an event. In this case, to change the color of the background
                     Body b = this.bodies[0];
-                    foreach (Body body in this.bodies) {
-                        if (body.IsTracked) {
+                    foreach (Body body in this.bodies)
+                    {
+                        if (body.IsTracked)
+                        {
                             b = body;
                         }
                     }
 
-                    bool trigger  = b.HandLeftState == b.HandRightState && b.HandLeftState == HandState.Open;
 
-                    SolidColorBrush color;
-                    if (trigger) {
-                        color =  Brushes.LightGray;
-                        // Trigger to OSC
-                        OscElement elem = new OscElement("/instr0", 67, 127, 500, 1);
-                        Console.Write("sending osc element instr0");
-                        osc.Send(elem);
-                    } else {
-                        color =  Brushes.Black;
-                    }
-                    dc.DrawRectangle(color, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
+
+                    bool trigger = b.HandLeftState == b.HandRightState && b.HandLeftState == HandState.Open;
+
+                    //                    if (b.HandLeftState == HandState.Open) { 
+                    // Trigger to OSC
+                    //                      OscElement elem = new OscElement("/instr1", 67, 127, 500, 1);
+                    //                    osc.Send(elem);
+                    //              } 
+                    //    if (b.HandRightState == HandState.Open) {
+                    // Trigger to OSC
+                    //     OscElement elem = new OscElement("/instr4", 67, 127, 500, 1);
+                    //   osc.Send(elem);
+                    // } 
+                    dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
 
                     int penIndex = 0;
-                    foreach (Body body in this.bodies) {
+                    foreach (Body body in this.bodies)
+                    {
                         Pen drawPen = this.bodyColors[penIndex++];
 
-                        if (body.IsTracked) {
+                        if (body.IsTracked)
+                        {
                             this.DrawClippedEdges(body, dc);
 
                             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
@@ -354,19 +389,86 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
                             // convert the joint points to depth (display) space
                             Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
 
-                            foreach (JointType jointType in joints.Keys) {
+                            foreach (JointType jointType in joints.Keys)
+                            {
                                 // sometimes the depth(Z) of an inferred joint may show as negative
                                 // clamp down to 0.1f to prevent coordinatemapper from returning (-Infinity, -Infinity)
                                 CameraSpacePoint position = joints[jointType].Position;
-                                if (position.Z < 0) {
+                                if (position.Z < 0)
+                                {
                                     position.Z = InferredZPositionClamp;
                                 }
 
                                 DepthSpacePoint depthSpacePoint = this.coordinateMapper.MapCameraPointToDepthSpace(position);
                                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
                             }
-
                             this.DrawBody(joints, jointPoints, dc, drawPen);
+                            
+                            if (b.HandLeftState == HandState.Open)
+                            {
+                              
+                                 
+                                OscElement pitch = new OscElement("/instr2", 30, 70, 1000, 1, 5.92);
+                                osc.Send(pitch);
+
+                            }
+              /**              if (b.HandRightState == HandState.Closed)
+                            {
+                                OscElement pitch = new OscElement("/instr1", 60, 127, 500, 2);
+                                osc.Send(pitch);
+
+                            }
+                            else if (b.HandRightState == HandState.Open && b.HandLeftState == HandState.Closed)
+                            {
+                                OscElement pitch = new OscElement("/instr1", 50, 127, 500, 1);
+                                osc.Send(pitch);
+
+                            } else if (b.HandRightState == b.HandLeftState && b.HandLeftState == HandState.Closed)
+                            {
+                                OscElement pitch = new OscElement("/instr2", 50, 127, 500, 1);
+                                osc.Send(pitch);
+                            } else if (b.HandRightState == b.HandLeftState && b.HandLeftState == HandState.Open)
+                            {
+                                OscElement pitch = new OscElement("/instr3", 50, 127, 500, 1);
+                                osc.Send(pitch);
+                            }*/
+                         /**   if (b.HandLeftState == HandState.Open)
+                            {
+                                OscElement clear = new OscElement("/Looper/0/State", "Clear");
+                                oscLoop.Send(clear);
+                            }**/
+
+                            if (lastWristLocation == null)
+                            {
+                                lastWristLocation = jointPoints[JointType.WristLeft];
+                            }
+                            else
+                            {
+                                Point newPosition = jointPoints[JointType.WristLeft];
+                                //Console.WriteLine("X: " + newPosition.X);
+                                //Console.WriteLine("Y: " + newPosition.Y);
+                                double deltaX = lastWristLocation.X - newPosition.X;
+                                double deltaY = lastWristLocation.Y - newPosition.Y;
+                                double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+                                Console.WriteLine("total displacement: " + totalDisplacement);
+                                //Console.WriteLine("total displacement: " + totalDisplacement);
+                                //                                if (totalDisplacement > 10)
+                                //                                {
+                                //                                   int pitch = (int)Math.Round((jointPoints[JointType.HandRight]).X % 200);
+                                //                                  OscElement elem = new OscElement("/instr0", pitch, 127, 500, 1);
+                                //                                osc.Send(elem);
+                                //                              Thread.Sleep(100);
+                                //                        }
+                                lastWristLocation = newPosition;
+                                //                                if (b.HandRightState == HandState.Open)
+                                //                                {
+                                //                                    // Trigger to OSC
+                                //                                    int pitch = (int) Math.Round((jointPoints[JointType.HandRight]).X % 200);
+                                //                                    OscElement elem = new OscElement("/instr4", pitch, 127, 500, 1);
+                                //                                    osc.Send(elem);
+                                //                                }
+
+                            }
 
                             this.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
                             this.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
@@ -386,26 +488,32 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// <param name="jointPoints">translated positions of joints to draw</param>
         /// <param name="drawingContext">drawing context to draw to</param>
         /// <param name="drawingPen">specifies color to draw a specific body</param>
-        private void DrawBody(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, DrawingContext drawingContext, Pen drawingPen) {
+        private void DrawBody(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, DrawingContext drawingContext, Pen drawingPen)
+        {
             // Draw the bones
-            foreach (var bone in this.bones) {
+            foreach (var bone in this.bones)
+            {
                 this.DrawBone(joints, jointPoints, bone.Item1, bone.Item2, drawingContext, drawingPen);
             }
 
             // Draw the joints
-            foreach (JointType jointType in joints.Keys) {
+            foreach (JointType jointType in joints.Keys)
+            {
                 Brush drawBrush = null;
 
                 TrackingState trackingState = joints[jointType].TrackingState;
 
-                if (trackingState == TrackingState.Tracked) {
+                if (trackingState == TrackingState.Tracked)
+                {
                     drawBrush = this.trackedJointBrush;
                 }
-                else if (trackingState == TrackingState.Inferred) {
+                else if (trackingState == TrackingState.Inferred)
+                {
                     drawBrush = this.inferredJointBrush;
                 }
 
-                if (drawBrush != null)   {
+                if (drawBrush != null)
+                {
                     drawingContext.DrawEllipse(drawBrush, null, jointPoints[jointType], JointThickness, JointThickness);
                 }
             }
@@ -420,19 +528,22 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// <param name="jointType1">second joint of bone to draw</param>
         /// <param name="drawingContext">drawing context to draw to</param>
         /// /// <param name="drawingPen">specifies color to draw a specific bone</param>
-        private void DrawBone(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, JointType jointType0, JointType jointType1, DrawingContext drawingContext, Pen drawingPen) {
+        private void DrawBone(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, JointType jointType0, JointType jointType1, DrawingContext drawingContext, Pen drawingPen)
+        {
             Joint joint0 = joints[jointType0];
             Joint joint1 = joints[jointType1];
 
             // If we can't find either of these joints, exit
             if (joint0.TrackingState == TrackingState.NotTracked ||
-                joint1.TrackingState == TrackingState.NotTracked) {
+                joint1.TrackingState == TrackingState.NotTracked)
+            {
                 return;
             }
 
             // We assume all drawn bones are inferred unless BOTH joints are tracked
             Pen drawPen = this.inferredBonePen;
-            if ((joint0.TrackingState == TrackingState.Tracked) && (joint1.TrackingState == TrackingState.Tracked)) {
+            if ((joint0.TrackingState == TrackingState.Tracked) && (joint1.TrackingState == TrackingState.Tracked))
+            {
                 drawPen = drawingPen;
             }
 
@@ -445,8 +556,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// <param name="handState">state of the hand</param>
         /// <param name="handPosition">position of the hand</param>
         /// <param name="drawingContext">drawing context to draw to</param>
-        private void DrawHand(HandState handState, Point handPosition, DrawingContext drawingContext) {
-            switch (handState) {
+        private void DrawHand(HandState handState, Point handPosition, DrawingContext drawingContext)
+        {
+            switch (handState)
+            {
                 case HandState.Closed:
                     drawingContext.DrawEllipse(this.handClosedBrush, null, handPosition, HandSize, HandSize);
                     break;
@@ -466,31 +579,36 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// </summary>
         /// <param name="body">body to draw clipping information for</param>
         /// <param name="drawingContext">drawing context to draw to</param>
-        private void DrawClippedEdges(Body body, DrawingContext drawingContext) {
+        private void DrawClippedEdges(Body body, DrawingContext drawingContext)
+        {
             FrameEdges clippedEdges = body.ClippedEdges;
 
-            if (clippedEdges.HasFlag(FrameEdges.Bottom)) {
+            if (clippedEdges.HasFlag(FrameEdges.Bottom))
+            {
                 drawingContext.DrawRectangle(
                     Brushes.Red,
                     null,
                     new Rect(0, this.displayHeight - ClipBoundsThickness, this.displayWidth, ClipBoundsThickness));
             }
 
-            if (clippedEdges.HasFlag(FrameEdges.Top)) {
+            if (clippedEdges.HasFlag(FrameEdges.Top))
+            {
                 drawingContext.DrawRectangle(
                     Brushes.Red,
                     null,
                     new Rect(0, 0, this.displayWidth, ClipBoundsThickness));
             }
 
-            if (clippedEdges.HasFlag(FrameEdges.Left)) {
+            if (clippedEdges.HasFlag(FrameEdges.Left))
+            {
                 drawingContext.DrawRectangle(
                     Brushes.Red,
                     null,
                     new Rect(0, 0, ClipBoundsThickness, this.displayHeight));
             }
 
-            if (clippedEdges.HasFlag(FrameEdges.Right)) {
+            if (clippedEdges.HasFlag(FrameEdges.Right))
+            {
                 drawingContext.DrawRectangle(
                     Brushes.Red,
                     null,
@@ -503,7 +621,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics {
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
-        private void Sensor_IsAvailableChanged(object sender, IsAvailableChangedEventArgs e) {
+        private void Sensor_IsAvailableChanged(object sender, IsAvailableChangedEventArgs e)
+        {
             // on failure, set the status text
             this.StatusText = this.kinectSensor.IsAvailable ? Properties.Resources.RunningStatusText
                                                             : Properties.Resources.SensorNotAvailableStatusText;
