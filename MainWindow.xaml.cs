@@ -13,7 +13,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
-    using System.Threading;
+    using System.Timers;
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -133,14 +133,17 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
 
         /// <summary>
-        /// The port to send to: default 22345
+        /// The port Ableton + Max for Live is listening on for UDP messages.
         /// </summary>
         private static int oscPort = 22345;
-        private static int oscLooperPort = 22344;
 
-        private static int currentPitch = 0;
-        private static int currentBeat = 0;
         private static Point lastWristLocation;
+        private static HandState lastHandState;
+        private static int tempoCounter = 0;
+        private static double[] tempos = new double[5];
+        private static bool isPlaying = false;
+
+        private static Timer beatTimer;
 
         /// <summary>
         /// Current status text to display
@@ -155,7 +158,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         {
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
-            oscLoop = new UdpWriter(oscHost, oscLooperPort);
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -326,12 +328,15 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
             bool dataReceived = false;
+            TimeSpan relativeTime = new TimeSpan();
+
+
 
             using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame())
             {
-
                 if (bodyFrame != null)
                 {
+                    relativeTime = bodyFrame.RelativeTime;
                     if (this.bodies == null)
                     {
                         this.bodies = new Body[bodyFrame.BodyCount];
@@ -363,16 +368,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
                     bool trigger = b.HandLeftState == b.HandRightState && b.HandLeftState == HandState.Open;
 
-                    //                    if (b.HandLeftState == HandState.Open) { 
-                    // Trigger to OSC
-                    //                      OscElement elem = new OscElement("/instr1", 67, 127, 500, 1);
-                    //                    osc.Send(elem);
-                    //              } 
-                    //    if (b.HandRightState == HandState.Open) {
-                    // Trigger to OSC
-                    //     OscElement elem = new OscElement("/instr4", 67, 127, 500, 1);
-                    //   osc.Send(elem);
-                    // } 
                     dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
 
                     int penIndex = 0;
@@ -403,70 +398,85 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
                             }
                             this.DrawBody(joints, jointPoints, dc, drawPen);
-                            
-                            if (b.HandLeftState == HandState.Open)
+
+                            if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
                             {
-                              
-                                 
-                                OscElement pitch = new OscElement("/instr2", 30, 70, 1000, 1, 5.92);
-                                osc.Send(pitch);
+
+                                tempos[tempoCounter] = relativeTime.TotalMilliseconds;
+
+                                tempoCounter++;
+
+                                if (tempoCounter == 5)
+                                {
+                                    double[] tempoDifferences = new double[4];
+                                    for (int i = 0; i < 4; i++)
+                                    {
+                                        tempoDifferences[i] = tempos[i + 1] - tempos[i];
+                                    }
+                                    double sum = 0;
+                                    for (int i = 0; i < 4; i++)
+                                    {
+                                        sum += tempoDifferences[i];
+                                    }
+                                    double averageTempoDiff = sum / 4.0;
+                                    Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
+                                    beatTimer = new Timer(averageTempoDiff);
+                                    beatTimer.Elapsed += OnTimedEvent;
+                                    beatTimer.AutoReset = true;
+                                    beatTimer.Enabled = true;
+
+
+                                }
 
                             }
-              /**              if (b.HandRightState == HandState.Closed)
+                            if (b.HandRightState == HandState.Open)
                             {
-                                OscElement pitch = new OscElement("/instr1", 60, 127, 500, 2);
-                                osc.Send(pitch);
-
+                                Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
+                                int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
+                                Console.WriteLine("PITCH: " + pitch);
+                                OscElement p = new OscElement("/pitch3", 90);
+                                osc.Send(p);
+                                if (!isPlaying)
+                                {
+                                    OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
+                                    osc.Send(elem);
+                                    isPlaying = true;
+                                }
                             }
-                            else if (b.HandRightState == HandState.Open && b.HandLeftState == HandState.Closed)
+                            if (b.HandRightState == HandState.Closed)
                             {
-                                OscElement pitch = new OscElement("/instr1", 50, 127, 500, 1);
-                                osc.Send(pitch);
+                                Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
+                                int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
+                                OscElement elem = new OscElement("/sustain3", 0);
+                                osc.Send(elem);
+                            }
 
-                            } else if (b.HandRightState == b.HandLeftState && b.HandLeftState == HandState.Closed)
-                            {
-                                OscElement pitch = new OscElement("/instr2", 50, 127, 500, 1);
-                                osc.Send(pitch);
-                            } else if (b.HandRightState == b.HandLeftState && b.HandLeftState == HandState.Open)
-                            {
-                                OscElement pitch = new OscElement("/instr3", 50, 127, 500, 1);
-                                osc.Send(pitch);
-                            }*/
-                         /**   if (b.HandLeftState == HandState.Open)
-                            {
-                                OscElement clear = new OscElement("/Looper/0/State", "Clear");
-                                oscLoop.Send(clear);
-                            }**/
+                            lastHandState = b.HandLeftState;
 
                             if (lastWristLocation == null)
                             {
                                 lastWristLocation = jointPoints[JointType.WristLeft];
                             }
+
                             else
                             {
                                 Point newPosition = jointPoints[JointType.WristLeft];
-                                //Console.WriteLine("X: " + newPosition.X);
-                                //Console.WriteLine("Y: " + newPosition.Y);
                                 double deltaX = lastWristLocation.X - newPosition.X;
                                 double deltaY = lastWristLocation.Y - newPosition.Y;
                                 double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-                                Console.WriteLine("total displacement: " + totalDisplacement);
-                                //Console.WriteLine("total displacement: " + totalDisplacement);
-                                //                                if (totalDisplacement > 10)
-                                //                                {
-                                //                                   int pitch = (int)Math.Round((jointPoints[JointType.HandRight]).X % 200);
-                                //                                  OscElement elem = new OscElement("/instr0", pitch, 127, 500, 1);
-                                //                                osc.Send(elem);
-                                //                              Thread.Sleep(100);
-                                //                        }
+                                if (totalDisplacement > 10)
+                                {
+                                    OscElement elem1 = new OscElement("/sustain3", 0);
+                                    osc.Send(elem1);
+                                    osc.Send(new OscElement("/pitch0", 10));
+                                    Console.WriteLine("SENDING instr 0");
+                                    OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
+                                    osc.Send(elem2);
+                                    osc.Send(new OscElement("/sustain0", 0));
+
+
+                                }
                                 lastWristLocation = newPosition;
-                                //                                if (b.HandRightState == HandState.Open)
-                                //                                {
-                                //                                    // Trigger to OSC
-                                //                                    int pitch = (int) Math.Round((jointPoints[JointType.HandRight]).X % 200);
-                                //                                    OscElement elem = new OscElement("/instr4", pitch, 127, 500, 1);
-                                //                                    osc.Send(elem);
-                                //                                }
 
                             }
 
@@ -479,6 +489,11 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                     this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
                 }
             }
+        }
+        private void OnTimedEvent(Object source, ElapsedEventArgs e)
+        {
+            OscElement pitch1 = new OscElement("/instr4", 20, 1000, 10, 1);
+            osc.Send(pitch1);
         }
 
         /// <summary>
