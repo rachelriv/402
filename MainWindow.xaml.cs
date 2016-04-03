@@ -19,55 +19,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        /// <summary>
-        /// Radius of drawn hand circles
-        /// </summary>
-        private const double HandSize = 10;
-
-        /// <summary>
-        /// Thickness of drawn joint lines
-        /// </summary>
-        private const double JointThickness = 3;
-
-        /// <summary>
-        /// Thickness of clip edge rectangles
-        /// </summary>
-        private const double ClipBoundsThickness = 10;
-
-        /// <summary>
-        /// Constant for clamping Z values of camera space points from being negative
-        /// </summary>
-        private const float InferredZPositionClamp = 0.1f;
-
-        /// <summary>
-        /// Brush used for drawing hands that are currently tracked as closed
-        /// </summary>
-        private readonly Brush handClosedBrush = new SolidColorBrush(Color.FromArgb(128, 255, 0, 0));
-
-        /// <summary>
-        /// Brush used for drawing hands that are currently tracked as opened
-        /// </summary>
-        private readonly Brush handOpenBrush = new SolidColorBrush(Color.FromArgb(128, 0, 255, 0));
-
-        /// <summary>
-        /// Brush used for drawing hands that are currently tracked as in lasso (pointer) position
-        /// </summary>
-        private readonly Brush handLassoBrush = new SolidColorBrush(Color.FromArgb(128, 0, 0, 255));
-
-        /// <summary>
-        /// Brush used for drawing joints that are currently tracked
-        /// </summary>
-        private readonly Brush trackedJointBrush = new SolidColorBrush(Color.FromArgb(255, 68, 192, 68));
-
-        /// <summary>
-        /// Brush used for drawing joints that are currently inferred
-        /// </summary>        
-        private readonly Brush inferredJointBrush = Brushes.Yellow;
-
-        /// <summary>
-        /// Pen used for drawing bones that are currently inferred
-        /// </summary>        
-        private readonly Pen inferredBonePen = new Pen(Brushes.Gray, 1);
+        BodyDrawer drawer = null;
 
         /// <summary>
         /// Drawing group for body rendering output
@@ -85,11 +37,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private KinectSensor kinectSensor = null;
 
         /// <summary>
-        /// Coordinate mapper to map one type of point to another
-        /// </summary>
-        private CoordinateMapper coordinateMapper = null;
-
-        /// <summary>
         /// Reader for body frames
         /// </summary>
         private BodyFrameReader bodyFrameReader = null;
@@ -100,30 +47,9 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private Body[] bodies = null;
 
         /// <summary>
-        /// definition of bones
-        /// </summary>
-        private List<Tuple<JointType, JointType>> bones;
-
-        /// <summary>
-        /// Width of display (depth space)
-        /// </summary>
-        private int displayWidth;
-
-        /// <summary>
-        /// Height of display (depth space)
-        /// </summary>
-        private int displayHeight;
-
-        /// <summary>
-        /// List of colors for each body tracked
-        /// </summary>
-        private List<Pen> bodyColors;
-
-        /// <summary>
         /// Current status text to display
         /// </summary>
         private string statusText = null;
-
 
         // =========  OSC ===========
         /// <summary>
@@ -137,19 +63,18 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// </summary>
         private static int oscPort = 22345;
 
+
         private static Point lastWristLocation;
         private static HandState lastHandState;
         private static int tempoCounter = 0;
         private static double[] tempos = new double[5];
         private static bool isPlaying = false;
-
         private static Timer beatTimer;
 
         /// <summary>
         /// Current status text to display
         /// </summary>
         private UdpWriter osc;
-        private UdpWriter oscLoop;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -162,65 +87,13 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
 
-            // get the coordinate mapper
-            this.coordinateMapper = this.kinectSensor.CoordinateMapper;
 
-            // get the depth (display) extents
-            FrameDescription frameDescription = this.kinectSensor.DepthFrameSource.FrameDescription;
-
-            // get size of joint space
-            this.displayWidth = frameDescription.Width;
-            this.displayHeight = frameDescription.Height;
+            drawer = new BodyDrawer(this.kinectSensor.CoordinateMapper,
+                                    this.kinectSensor.DepthFrameSource.FrameDescription);
 
             // open the reader for the body frames
             this.bodyFrameReader = this.kinectSensor.BodyFrameSource.OpenReader();
 
-            // a bone defined as a line between two joints
-            this.bones = new List<Tuple<JointType, JointType>>();
-
-            // Torso
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.Neck, JointType.SpineShoulder));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.SpineMid));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineMid, JointType.SpineBase));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipLeft));
-
-            // Right Arm
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.ElbowRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowRight, JointType.WristRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.WristRight, JointType.HandRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.WristRight, JointType.ThumbRight));
-
-            // Left Arm
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ElbowLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowLeft, JointType.WristLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.WristLeft, JointType.HandLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.HandLeft, JointType.HandTipLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.WristLeft, JointType.ThumbLeft));
-
-            // Right Leg
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.KneeRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeRight, JointType.AnkleRight));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleRight, JointType.FootRight));
-
-            // Left Leg
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.KneeLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeLeft, JointType.AnkleLeft));
-            this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.FootLeft));
-
-            // populate body colors, one for each BodyIndex
-            this.bodyColors = new List<Pen>();
-
-            this.bodyColors.Add(new Pen(Brushes.Red, 6));
-            this.bodyColors.Add(new Pen(Brushes.Orange, 6));
-            this.bodyColors.Add(new Pen(Brushes.Green, 6));
-            this.bodyColors.Add(new Pen(Brushes.Blue, 6));
-            this.bodyColors.Add(new Pen(Brushes.Indigo, 6));
-            this.bodyColors.Add(new Pen(Brushes.Violet, 6));
 
             // set IsAvailableChanged event notifier
             this.kinectSensor.IsAvailableChanged += this.Sensor_IsAvailableChanged;
@@ -244,6 +117,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             // initialize the components (controls) of the window
             this.InitializeComponent();
         }
+
+
 
         /// <summary>
         /// INotifyPropertyChangedPropertyChanged event to allow window controls to bind to changeable data
@@ -327,16 +202,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// <param name="e">event arguments</param>
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
-            bool dataReceived = false;
-            TimeSpan relativeTime = new TimeSpan();
-
-
-
             using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame())
             {
                 if (bodyFrame != null)
                 {
-                    relativeTime = bodyFrame.RelativeTime;
                     if (this.bodies == null)
                     {
                         this.bodies = new Body[bodyFrame.BodyCount];
@@ -346,290 +215,140 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                     // As long as those body objects are not disposed and not set to null in the array,
                     // those body objects will be re-used.
                     bodyFrame.GetAndRefreshBodyData(this.bodies);
-                    dataReceived = true;
-                }
-            }
 
-            if (dataReceived)
-            {
-                using (DrawingContext dc = this.drawingGroup.Open())
-                {
-                    // Added a trigger of two open hands to fire an event. In this case, to change the color of the background
-                    Body b = this.bodies[0];
-                    foreach (Body body in this.bodies)
-                    {
-                        if (body.IsTracked)
-                        {
-                            b = body;
-                        }
-                    }
-
-
-
-                    bool trigger = b.HandLeftState == b.HandRightState && b.HandLeftState == HandState.Open;
-
-                    dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
-
-                    int penIndex = 0;
-                    foreach (Body body in this.bodies)
-                    {
-                        Pen drawPen = this.bodyColors[penIndex++];
-
-                        if (body.IsTracked)
-                        {
-                            this.DrawClippedEdges(body, dc);
-
-                            IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
-
-                            // convert the joint points to depth (display) space
-                            Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
-
-                            foreach (JointType jointType in joints.Keys)
-                            {
-                                // sometimes the depth(Z) of an inferred joint may show as negative
-                                // clamp down to 0.1f to prevent coordinatemapper from returning (-Infinity, -Infinity)
-                                CameraSpacePoint position = joints[jointType].Position;
-                                if (position.Z < 0)
-                                {
-                                    position.Z = InferredZPositionClamp;
-                                }
-
-                                DepthSpacePoint depthSpacePoint = this.coordinateMapper.MapCameraPointToDepthSpace(position);
-                                jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
-                            }
-                            this.DrawBody(joints, jointPoints, dc, drawPen);
-
-                            if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
-                            {
-
-                                tempos[tempoCounter] = relativeTime.TotalMilliseconds;
-
-                                tempoCounter++;
-
-                                if (tempoCounter == 5)
-                                {
-                                    double[] tempoDifferences = new double[4];
-                                    for (int i = 0; i < 4; i++)
-                                    {
-                                        tempoDifferences[i] = tempos[i + 1] - tempos[i];
-                                    }
-                                    double sum = 0;
-                                    for (int i = 0; i < 4; i++)
-                                    {
-                                        sum += tempoDifferences[i];
-                                    }
-                                    double averageTempoDiff = sum / 4.0;
-                                    Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
-                                    beatTimer = new Timer(averageTempoDiff);
-                                    beatTimer.Elapsed += OnTimedEvent;
-                                    beatTimer.AutoReset = true;
-                                    beatTimer.Enabled = true;
-
-
-                                }
-
-                            }
-                            if (b.HandRightState == HandState.Open)
-                            {
-                                Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                                int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
-                                Console.WriteLine("PITCH: " + pitch);
-                                OscElement p = new OscElement("/pitch3", 90);
-                                osc.Send(p);
-                                if (!isPlaying)
-                                {
-                                    OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
-                                    osc.Send(elem);
-                                    isPlaying = true;
-                                }
-                            }
-                            if (b.HandRightState == HandState.Closed)
-                            {
-                                Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                                int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
-                                OscElement elem = new OscElement("/sustain3", 0);
-                                osc.Send(elem);
-                            }
-
-                            lastHandState = b.HandLeftState;
-
-                            if (lastWristLocation == null)
-                            {
-                                lastWristLocation = jointPoints[JointType.WristLeft];
-                            }
-
-                            else
-                            {
-                                Point newPosition = jointPoints[JointType.WristLeft];
-                                double deltaX = lastWristLocation.X - newPosition.X;
-                                double deltaY = lastWristLocation.Y - newPosition.Y;
-                                double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-                                if (totalDisplacement > 10)
-                                {
-                                    OscElement elem1 = new OscElement("/sustain3", 0);
-                                    osc.Send(elem1);
-                                    osc.Send(new OscElement("/pitch0", 10));
-                                    Console.WriteLine("SENDING instr 0");
-                                    OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
-                                    osc.Send(elem2);
-                                    osc.Send(new OscElement("/sustain0", 0));
-
-
-                                }
-                                lastWristLocation = newPosition;
-
-                            }
-
-                            this.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
-                            this.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
-                        }
-                    }
-
-                    // prevent drawing outside of our render area
-                    this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
+                    // Run the core body processing routine
+                    Process(bodyFrame);
                 }
             }
         }
+
+ 
+        private void Process(BodyFrame bodyFrame)
+        {
+            TimeSpan relativeTime = new TimeSpan();
+            // Selects the first body that is tracked and use that for our calculations
+            Body b = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
+
+            using (DrawingContext dc = this.drawingGroup.Open())
+            {
+
+                dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, drawer.displayWidth, drawer.displayHeight));
+
+
+                Pen drawPen = new Pen(Brushes.Blue, 6);
+
+                if (b != null && b.IsTracked)
+                {
+                    Body body = b;
+                    drawer.DrawClippedEdges(body, dc);
+
+                    IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+
+                    // convert the joint points to depth (display) space
+                    Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
+
+                    drawer.DrawBody(joints, jointPoints, dc, drawPen);
+
+                    if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
+                    {
+
+                        tempos[tempoCounter] = relativeTime.TotalMilliseconds;
+
+                        tempoCounter++;
+
+                        if (tempoCounter == 5)
+                        {
+                            double[] tempoDifferences = new double[4];
+                            for (int i = 0; i < 4; i++)
+                            {
+                                tempoDifferences[i] = tempos[i + 1] - tempos[i];
+                            }
+                            double sum = 0;
+                            for (int i = 0; i < 4; i++)
+                            {
+                                sum += tempoDifferences[i];
+                            }
+                            double averageTempoDiff = sum / 4.0;
+                            Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
+                            beatTimer = new Timer(averageTempoDiff);
+                            beatTimer.Elapsed += OnTimedEvent;
+                            beatTimer.AutoReset = true;
+                            beatTimer.Enabled = true;
+
+
+                        }
+
+                    }
+                    /**         if (b.HandRightState == HandState.Open)
+                             {
+                                 Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
+                                 int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
+                                 Console.WriteLine("PITCH: " + pitch);
+                                 OscElement p = new OscElement("/pitch3", 30);
+                                 osc.Send(p);
+                                 if (!isPlaying)
+                                 {
+                                     OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
+                                     osc.Send(elem);
+                                     isPlaying = true;
+                                 }
+
+                                 if (b.HandRightState == HandState.Closed)
+                                 {
+                                     Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
+                                 //    int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
+                                     OscElement elem = new OscElement("/sustain3", 0);
+                                     osc.Send(elem);
+                                 }
+
+                                 lastHandState = b.HandLeftState;
+
+                                 if (lastWristLocation == null)
+                                 {
+                                     lastWristLocation = jointPoints[JointType.WristLeft];
+                                 }
+
+                                 else
+                                 {
+                                     Point newPosition = jointPoints[JointType.WristLeft];
+                                     double deltaX = lastWristLocation.X - newPosition.X;
+                                     double deltaY = lastWristLocation.Y - newPosition.Y;
+                                     double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+                                     if (false)
+                                     {
+                                         OscElement elem1 = new OscElement("/sustain3", 0);
+                                         osc.Send(elem1);
+                                         osc.Send(new OscElement("/pitch0", 10));
+                                         Console.WriteLine("SENDING instr 0");
+                                         OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
+                                         osc.Send(elem2);
+                                         osc.Send(new OscElement("/sustain0", 0));
+
+
+                                     }
+                                     lastWristLocation = newPosition;
+
+                                 }*/
+                
+
+                        drawer.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
+                        drawer.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
+                    //}
+                }
+
+                // prevent drawing outside of our render area
+                this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, drawer.displayWidth, drawer.displayHeight));
+            }
+        }
+        
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
             OscElement pitch1 = new OscElement("/instr4", 20, 1000, 10, 1);
             osc.Send(pitch1);
         }
 
-        /// <summary>
-        /// Draws a body
-        /// </summary>
-        /// <param name="joints">joints to draw</param>
-        /// <param name="jointPoints">translated positions of joints to draw</param>
-        /// <param name="drawingContext">drawing context to draw to</param>
-        /// <param name="drawingPen">specifies color to draw a specific body</param>
-        private void DrawBody(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, DrawingContext drawingContext, Pen drawingPen)
-        {
-            // Draw the bones
-            foreach (var bone in this.bones)
-            {
-                this.DrawBone(joints, jointPoints, bone.Item1, bone.Item2, drawingContext, drawingPen);
-            }
 
-            // Draw the joints
-            foreach (JointType jointType in joints.Keys)
-            {
-                Brush drawBrush = null;
 
-                TrackingState trackingState = joints[jointType].TrackingState;
-
-                if (trackingState == TrackingState.Tracked)
-                {
-                    drawBrush = this.trackedJointBrush;
-                }
-                else if (trackingState == TrackingState.Inferred)
-                {
-                    drawBrush = this.inferredJointBrush;
-                }
-
-                if (drawBrush != null)
-                {
-                    drawingContext.DrawEllipse(drawBrush, null, jointPoints[jointType], JointThickness, JointThickness);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Draws one bone of a body (joint to joint)
-        /// </summary>
-        /// <param name="joints">joints to draw</param>
-        /// <param name="jointPoints">translated positions of joints to draw</param>
-        /// <param name="jointType0">first joint of bone to draw</param>
-        /// <param name="jointType1">second joint of bone to draw</param>
-        /// <param name="drawingContext">drawing context to draw to</param>
-        /// /// <param name="drawingPen">specifies color to draw a specific bone</param>
-        private void DrawBone(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, JointType jointType0, JointType jointType1, DrawingContext drawingContext, Pen drawingPen)
-        {
-            Joint joint0 = joints[jointType0];
-            Joint joint1 = joints[jointType1];
-
-            // If we can't find either of these joints, exit
-            if (joint0.TrackingState == TrackingState.NotTracked ||
-                joint1.TrackingState == TrackingState.NotTracked)
-            {
-                return;
-            }
-
-            // We assume all drawn bones are inferred unless BOTH joints are tracked
-            Pen drawPen = this.inferredBonePen;
-            if ((joint0.TrackingState == TrackingState.Tracked) && (joint1.TrackingState == TrackingState.Tracked))
-            {
-                drawPen = drawingPen;
-            }
-
-            drawingContext.DrawLine(drawPen, jointPoints[jointType0], jointPoints[jointType1]);
-        }
-
-        /// <summary>
-        /// Draws a hand symbol if the hand is tracked: red circle = closed, green circle = opened; blue circle = lasso
-        /// </summary>
-        /// <param name="handState">state of the hand</param>
-        /// <param name="handPosition">position of the hand</param>
-        /// <param name="drawingContext">drawing context to draw to</param>
-        private void DrawHand(HandState handState, Point handPosition, DrawingContext drawingContext)
-        {
-            switch (handState)
-            {
-                case HandState.Closed:
-                    drawingContext.DrawEllipse(this.handClosedBrush, null, handPosition, HandSize, HandSize);
-                    break;
-
-                case HandState.Open:
-                    drawingContext.DrawEllipse(this.handOpenBrush, null, handPosition, HandSize, HandSize);
-                    break;
-
-                case HandState.Lasso:
-                    drawingContext.DrawEllipse(this.handLassoBrush, null, handPosition, HandSize, HandSize);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Draws indicators to show which edges are clipping body data
-        /// </summary>
-        /// <param name="body">body to draw clipping information for</param>
-        /// <param name="drawingContext">drawing context to draw to</param>
-        private void DrawClippedEdges(Body body, DrawingContext drawingContext)
-        {
-            FrameEdges clippedEdges = body.ClippedEdges;
-
-            if (clippedEdges.HasFlag(FrameEdges.Bottom))
-            {
-                drawingContext.DrawRectangle(
-                    Brushes.Red,
-                    null,
-                    new Rect(0, this.displayHeight - ClipBoundsThickness, this.displayWidth, ClipBoundsThickness));
-            }
-
-            if (clippedEdges.HasFlag(FrameEdges.Top))
-            {
-                drawingContext.DrawRectangle(
-                    Brushes.Red,
-                    null,
-                    new Rect(0, 0, this.displayWidth, ClipBoundsThickness));
-            }
-
-            if (clippedEdges.HasFlag(FrameEdges.Left))
-            {
-                drawingContext.DrawRectangle(
-                    Brushes.Red,
-                    null,
-                    new Rect(0, 0, ClipBoundsThickness, this.displayHeight));
-            }
-
-            if (clippedEdges.HasFlag(FrameEdges.Right))
-            {
-                drawingContext.DrawRectangle(
-                    Brushes.Red,
-                    null,
-                    new Rect(this.displayWidth - ClipBoundsThickness, 0, ClipBoundsThickness, this.displayHeight));
-            }
-        }
 
         /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).
