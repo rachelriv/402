@@ -7,7 +7,6 @@
 namespace Microsoft.Samples.Kinect.BodyBasics
 {
     using System;
-    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Windows;
     using System.Windows.Media;
@@ -21,15 +20,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     {
         BodyDrawer drawer = null;
 
-        /// <summary>
-        /// Drawing group for body rendering output
-        /// </summary>
-        private DrawingGroup drawingGroup;
-
-        /// <summary>
-        /// Drawing image that we will display
-        /// </summary>
-        private DrawingImage imageSource;
+        private ImageSource imageSource;
 
         /// <summary>
         /// Active Kinect sensor
@@ -87,9 +78,9 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
 
-
             drawer = new BodyDrawer(this.kinectSensor.CoordinateMapper,
-                                    this.kinectSensor.DepthFrameSource.FrameDescription);
+                                    this.kinectSensor.DepthFrameSource.FrameDescription,
+                                    new DrawingGroup());
 
             // open the reader for the body frames
             this.bodyFrameReader = this.kinectSensor.BodyFrameSource.OpenReader();
@@ -101,15 +92,12 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             // open the sensor
             this.kinectSensor.Open();
 
+            this.imageSource = new DrawingImage(drawer.drawingGroup);
+
             // set the status text
             this.StatusText = this.kinectSensor.IsAvailable ? Properties.Resources.RunningStatusText
                                                             : Properties.Resources.NoSensorStatusText;
 
-            // Create the drawing group we'll use for drawing
-            this.drawingGroup = new DrawingGroup();
-
-            // Create an image source that we can use in our image control
-            this.imageSource = new DrawingImage(this.drawingGroup);
 
             // use the window object as the view model in this simple example
             this.DataContext = this;
@@ -222,133 +210,108 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
         }
 
- 
+
         private void Process(BodyFrame bodyFrame)
         {
             TimeSpan relativeTime = new TimeSpan();
             // Selects the first body that is tracked and use that for our calculations
             Body b = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
-
-            using (DrawingContext dc = this.drawingGroup.Open())
+            if (b != null && b.IsTracked)
             {
 
-                dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, drawer.displayWidth, drawer.displayHeight));
 
+                drawer.Draw(b);
 
-                Pen drawPen = new Pen(Brushes.Blue, 6);
-
-                if (b != null && b.IsTracked)
+                if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
                 {
-                    Body body = b;
-                    drawer.DrawClippedEdges(body, dc);
 
-                    IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+                    tempos[tempoCounter] = relativeTime.TotalMilliseconds;
 
-                    // convert the joint points to depth (display) space
-                    Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
+                    tempoCounter++;
 
-                    drawer.DrawBody(joints, jointPoints, dc, drawPen);
-
-                    if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
+                    if (tempoCounter == 5)
                     {
-
-                        tempos[tempoCounter] = relativeTime.TotalMilliseconds;
-
-                        tempoCounter++;
-
-                        if (tempoCounter == 5)
+                        double[] tempoDifferences = new double[4];
+                        for (int i = 0; i < 4; i++)
                         {
-                            double[] tempoDifferences = new double[4];
-                            for (int i = 0; i < 4; i++)
-                            {
-                                tempoDifferences[i] = tempos[i + 1] - tempos[i];
-                            }
-                            double sum = 0;
-                            for (int i = 0; i < 4; i++)
-                            {
-                                sum += tempoDifferences[i];
-                            }
-                            double averageTempoDiff = sum / 4.0;
-                            Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
-                            beatTimer = new Timer(averageTempoDiff);
-                            beatTimer.Elapsed += OnTimedEvent;
-                            beatTimer.AutoReset = true;
-                            beatTimer.Enabled = true;
-
-
+                            tempoDifferences[i] = tempos[i + 1] - tempos[i];
                         }
+                        double sum = 0;
+                        for (int i = 0; i < 4; i++)
+                        {
+                            sum += tempoDifferences[i];
+                        }
+                        double averageTempoDiff = sum / 4.0;
+                        Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
+                        beatTimer = new Timer(averageTempoDiff);
+                        beatTimer.Elapsed += OnTimedEvent;
+                        beatTimer.AutoReset = true;
+                        beatTimer.Enabled = true;
+
 
                     }
-                    /**         if (b.HandRightState == HandState.Open)
+
+                }
+                /**         if (b.HandRightState == HandState.Open)
+                         {
+                             Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
+                             int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
+                             Console.WriteLine("PITCH: " + pitch);
+                             OscElement p = new OscElement("/pitch3", 30);
+                             osc.Send(p);
+                             if (!isPlaying)
+                             {
+                                 OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
+                                 osc.Send(elem);
+                                 isPlaying = true;
+                             }
+
+                             if (b.HandRightState == HandState.Closed)
                              {
                                  Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                                 int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
-                                 Console.WriteLine("PITCH: " + pitch);
-                                 OscElement p = new OscElement("/pitch3", 30);
-                                 osc.Send(p);
-                                 if (!isPlaying)
+                             //    int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
+                                 OscElement elem = new OscElement("/sustain3", 0);
+                                 osc.Send(elem);
+                             }
+
+                             lastHandState = b.HandLeftState;
+
+                             if (lastWristLocation == null)
+                             {
+                                 lastWristLocation = jointPoints[JointType.WristLeft];
+                             }
+
+                             else
+                             {
+                                 Point newPosition = jointPoints[JointType.WristLeft];
+                                 double deltaX = lastWristLocation.X - newPosition.X;
+                                 double deltaY = lastWristLocation.Y - newPosition.Y;
+                                 double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+                                 if (false)
                                  {
-                                     OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
-                                     osc.Send(elem);
-                                     isPlaying = true;
+                                     OscElement elem1 = new OscElement("/sustain3", 0);
+                                     osc.Send(elem1);
+                                     osc.Send(new OscElement("/pitch0", 10));
+                                     Console.WriteLine("SENDING instr 0");
+                                     OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
+                                     osc.Send(elem2);
+                                     osc.Send(new OscElement("/sustain0", 0));
+
+
                                  }
+                                 lastWristLocation = newPosition;
 
-                                 if (b.HandRightState == HandState.Closed)
-                                 {
-                                     Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                                 //    int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
-                                     OscElement elem = new OscElement("/sustain3", 0);
-                                     osc.Send(elem);
-                                 }
+                             }*/
 
-                                 lastHandState = b.HandLeftState;
-
-                                 if (lastWristLocation == null)
-                                 {
-                                     lastWristLocation = jointPoints[JointType.WristLeft];
-                                 }
-
-                                 else
-                                 {
-                                     Point newPosition = jointPoints[JointType.WristLeft];
-                                     double deltaX = lastWristLocation.X - newPosition.X;
-                                     double deltaY = lastWristLocation.Y - newPosition.Y;
-                                     double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-                                     if (false)
-                                     {
-                                         OscElement elem1 = new OscElement("/sustain3", 0);
-                                         osc.Send(elem1);
-                                         osc.Send(new OscElement("/pitch0", 10));
-                                         Console.WriteLine("SENDING instr 0");
-                                         OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
-                                         osc.Send(elem2);
-                                         osc.Send(new OscElement("/sustain0", 0));
-
-
-                                     }
-                                     lastWristLocation = newPosition;
-
-                                 }*/
-                
-
-                        drawer.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
-                        drawer.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
-                    //}
-                }
-
-                // prevent drawing outside of our render area
-                this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, drawer.displayWidth, drawer.displayHeight));
             }
+
         }
-        
+
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
             OscElement pitch1 = new OscElement("/instr4", 20, 1000, 10, 1);
             osc.Send(pitch1);
         }
-
-
-
 
         /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).

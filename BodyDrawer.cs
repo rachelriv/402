@@ -44,6 +44,11 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private const float InferredZPositionClamp = 0.1f;
 
         /// <summary>
+        /// Drawing group for body rendering output
+        /// </summary>
+        public DrawingGroup drawingGroup;
+
+        /// <summary>
         /// Brush used for drawing hands that are currently tracked as closed
         /// </summary>
         private readonly Brush handClosedBrush = new SolidColorBrush(Color.FromArgb(128, 255, 0, 0));
@@ -75,12 +80,13 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
         private List<Tuple<JointType, JointType>> bones;
 
-        public BodyDrawer(CoordinateMapper coordinateMapper, FrameDescription frameDescription)
+        public BodyDrawer(CoordinateMapper coordinateMapper, FrameDescription frameDescription, DrawingGroup drawingGroup)
         {
             this.coordinateMapper = coordinateMapper;
             this.displayHeight = frameDescription.Height;
             this.displayWidth = frameDescription.Width; 
             this.bones = (new BodyConstructor()).GetBones();
+            this.drawingGroup = drawingGroup;
         }
 
         /// <summary>
@@ -181,6 +187,30 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
         }
 
+        public void Draw(Body body)
+        {
+            using (DrawingContext dc = this.drawingGroup.Open())
+            {
+
+                dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
+
+                if (body != null && body.IsTracked)
+                {
+                    this.DrawClippedEdges(body, dc);
+
+                    IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+
+                    // convert the joint points to depth (display) space
+                    Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
+                    Pen drawPen = new Pen(Brushes.Blue, 6);
+                    this.DrawBody(joints, jointPoints, dc, drawPen);
+                    this.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
+                    this.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
+                }
+                // prevent drawing outside of our render area
+                this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
+            }
+        }
         
         /// <summary>
         /// Draws a body
@@ -191,7 +221,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// <param name="drawingPen">specifies color to draw a specific body</param>
         public void DrawBody(IReadOnlyDictionary<JointType, Joint> joints, IDictionary<JointType, Point> jointPoints, DrawingContext drawingContext, Pen drawingPen)
         {
-            Console.WriteLine("bones: " + this.bones);
+
             // Draw the bones
             foreach (JointType jointType in joints.Keys)
             {
