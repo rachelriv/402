@@ -13,6 +13,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     using Microsoft.Kinect;
     using Ventuz.OSC;
     using System.Timers;
+    using System.Collections.Generic;    
+    
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -55,12 +57,15 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static int oscPort = 22345;
 
 
-        private static Point lastWristLocation;
-        private static HandState lastHandState;
-        private static int tempoCounter = 0;
-        private static double[] tempos = new double[5];
-        private static bool isPlaying = false;
+        private static HandState lastHandLeftState;
+        private static HandState lastHandRightState;
+        private const int MINIMUM_NUMBER_OF_BEATS = 5;
+        private static bool timeSignatureIsEstablished = false;
+        private static int stressedBeatsCounter = 0;
+        private static int totalBeatsCounter = 0;
+        private static List<double> beatTimes;
         private static Timer beatTimer;
+        private static int currentBeat = 0;
 
         /// <summary>
         /// Current status text to display
@@ -74,6 +79,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         {
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
+
+            beatTimes = new List<double>();
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -210,107 +217,75 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
         }
 
+        private bool IsBeat(Body body)
+        {
+            return body.HandLeftState == HandState.Open
+                   && lastHandRightState == HandState.Closed
+                   && lastHandLeftState == HandState.Closed;
+        }
+
+
+        private void CheckForTimeSignature(Body body, double timeInMilliseconds)
+        {
+            if (IsBeat(body))
+            {
+                totalBeatsCounter++;
+                beatTimes.Add(timeInMilliseconds);
+            }
+
+            if (totalBeatsCounter == MINIMUM_NUMBER_OF_BEATS)
+            {
+                EstablishTimeSignature();
+            }
+        }
+
+
+        private void EstablishTimeSignature()
+        {
+            double sumOfBeatTimeDifferences = 0;
+            for (int i = 0; i < beatTimes.Count - 1; i++)
+            {
+                sumOfBeatTimeDifferences += beatTimes[i + 1] - beatTimes[i];
+            }
+            beatTimer = new Timer(sumOfBeatTimeDifferences / ((double)totalBeatsCounter));
+            beatTimer.Elapsed += SendBeat;
+            beatTimer.AutoReset = true;
+            beatTimer.Enabled = true;
+            timeSignatureIsEstablished = true;
+        }
+
 
         private void Process(BodyFrame bodyFrame)
         {
-            TimeSpan relativeTime = new TimeSpan();
+            TimeSpan relativeTime = bodyFrame.RelativeTime;
+            
             // Selects the first body that is tracked and use that for our calculations
-            Body b = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
-            if (b != null && b.IsTracked)
+            Body body = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
+
+            if (body != null && body.IsTracked)
             {
-
-
-                drawer.Draw(b);
-
-                if (b.HandLeftState == HandState.Open && lastHandState == HandState.Closed && tempoCounter < 5)
+                drawer.Draw(body);
+                if (!timeSignatureIsEstablished)
                 {
-
-                    tempos[tempoCounter] = relativeTime.TotalMilliseconds;
-
-                    tempoCounter++;
-
-                    if (tempoCounter == 5)
-                    {
-                        double[] tempoDifferences = new double[4];
-                        for (int i = 0; i < 4; i++)
-                        {
-                            tempoDifferences[i] = tempos[i + 1] - tempos[i];
-                        }
-                        double sum = 0;
-                        for (int i = 0; i < 4; i++)
-                        {
-                            sum += tempoDifferences[i];
-                        }
-                        double averageTempoDiff = sum / 4.0;
-                        Console.WriteLine("AVERAGE TEMPO DIFF: " + averageTempoDiff);
-                        beatTimer = new Timer(averageTempoDiff);
-                        beatTimer.Elapsed += OnTimedEvent;
-                        beatTimer.AutoReset = true;
-                        beatTimer.Enabled = true;
-
-
-                    }
-
+                    CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
                 }
-                /**         if (b.HandRightState == HandState.Open)
-                         {
-                             Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                             int pitch = (int)Math.Round(127 - jointPoints[JointType.HandRight].Y / 4);
-                             Console.WriteLine("PITCH: " + pitch);
-                             OscElement p = new OscElement("/pitch3", 30);
-                             osc.Send(p);
-                             if (!isPlaying)
-                             {
-                                 OscElement elem = new OscElement("/instr3", pitch, 127, 10, 1, 1);
-                                 osc.Send(elem);
-                                 isPlaying = true;
-                             }
 
-                             if (b.HandRightState == HandState.Closed)
-                             {
-                                 Console.WriteLine("HEIGHT: " + jointPoints[JointType.HandRight].Y);
-                             //    int pitch = 100 - (int)Math.Round((jointPoints[JointType.HandRight]).Y) / 4;
-                                 OscElement elem = new OscElement("/sustain3", 0);
-                                 osc.Send(elem);
-                             }
+                lastHandLeftState = body.HandLeftState;
+                lastHandRightState = body.HandRightState;
 
-                             lastHandState = b.HandLeftState;
-
-                             if (lastWristLocation == null)
-                             {
-                                 lastWristLocation = jointPoints[JointType.WristLeft];
-                             }
-
-                             else
-                             {
-                                 Point newPosition = jointPoints[JointType.WristLeft];
-                                 double deltaX = lastWristLocation.X - newPosition.X;
-                                 double deltaY = lastWristLocation.Y - newPosition.Y;
-                                 double totalDisplacement = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-                                 if (false)
-                                 {
-                                     OscElement elem1 = new OscElement("/sustain3", 0);
-                                     osc.Send(elem1);
-                                     osc.Send(new OscElement("/pitch0", 10));
-                                     Console.WriteLine("SENDING instr 0");
-                                     OscElement elem2 = new OscElement("/instr0", 50, 127, 500, 1, 1);
-                                     osc.Send(elem2);
-                                     osc.Send(new OscElement("/sustain0", 0));
-
-
-                                 }
-                                 lastWristLocation = newPosition;
-
-                             }*/
 
             }
 
         }
 
-        private void OnTimedEvent(Object source, ElapsedEventArgs e)
+        private void SendBeat(Object source, ElapsedEventArgs e)
         {
-            OscElement pitch1 = new OscElement("/instr4", 20, 1000, 10, 1);
-            osc.Send(pitch1);
+            Console.WriteLine("Sending beat");
+            OscElement stressedBeat = new OscElement("/beat", 10, 500, 10, 200);
+            OscElement beat = new OscElement("/beat", 30, 500, 10, 200);
+            if (currentBeat % 3 == 0) { osc.Send(stressedBeat); }
+            else { osc.Send(beat); }
+            currentBeat++;
         }
 
         /// <summary>

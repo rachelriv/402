@@ -84,7 +84,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         {
             this.coordinateMapper = coordinateMapper;
             this.displayHeight = frameDescription.Height;
-            this.displayWidth = frameDescription.Width; 
+            this.displayWidth = frameDescription.Width;
             this.bones = (new BodyConstructor()).GetBones();
             this.drawingGroup = drawingGroup;
         }
@@ -194,24 +194,23 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
                 dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
 
-                if (body != null && body.IsTracked)
-                {
-                    this.DrawClippedEdges(body, dc);
 
-                    IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+                this.DrawClippedEdges(body, dc);
 
-                    // convert the joint points to depth (display) space
-                    Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
-                    Pen drawPen = new Pen(Brushes.Blue, 6);
-                    this.DrawBody(joints, jointPoints, dc, drawPen);
-                    this.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
-                    this.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
-                }
+                IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+
+                // convert the joint points to depth (display) space
+                Dictionary<JointType, Point> jointPoints = new Dictionary<JointType, Point>();
+                Pen drawPen = new Pen(Brushes.Blue, 6);
+                this.DrawBody(joints, jointPoints, dc, drawPen);
+                this.DrawHand(body.HandLeftState, jointPoints[JointType.HandLeft], dc);
+                this.DrawHand(body.HandRightState, jointPoints[JointType.HandRight], dc);
+
                 // prevent drawing outside of our render area
                 this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
             }
         }
-        
+
         /// <summary>
         /// Draws a body
         /// </summary>
@@ -236,7 +235,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                 DepthSpacePoint depthSpacePoint = this.coordinateMapper.MapCameraPointToDepthSpace(position);
                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
             }
-                foreach (var bone in this.bones)
+            foreach (var bone in this.bones)
             {
                 this.DrawBone(joints, jointPoints, bone.Item1, bone.Item2, drawingContext, drawingPen);
             }
