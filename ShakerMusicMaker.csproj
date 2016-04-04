@@ -85,6 +85,7 @@
     </Compile>
     <Compile Include="BodyConstructor.cs" />
     <Compile Include="BodyDrawer.cs" />
+    <Compile Include="Instrument.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

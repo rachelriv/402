@@ -61,7 +61,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static HandState lastHandRightState;
         private const int MINIMUM_NUMBER_OF_BEATS = 5;
         private static bool timeSignatureIsEstablished = false;
-        private static int stressedBeatsCounter = 0;
         private static int totalBeatsCounter = 0;
         private static List<double> beatTimes;
         private static Timer beatTimer;
@@ -70,7 +69,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// <summary>
         /// Current status text to display
         /// </summary>
-        private UdpWriter osc;
+        public static UdpWriter osc;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -280,12 +279,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
         private void SendBeat(Object source, ElapsedEventArgs e)
         {
-            Console.WriteLine("Sending beat");
-            OscElement stressedBeat = new OscElement("/beat", 10, 500, 10, 200);
-            OscElement beat = new OscElement("/beat", 30, 500, 10, 200);
-            if (currentBeat % 3 == 0) { osc.Send(stressedBeat); }
-            else { osc.Send(beat); }
-            currentBeat++;
+            Instrument beatInstrument = new Instrument("beat");
+            beatInstrument.PlayNote(10);
         }
 
         /// <summary>
