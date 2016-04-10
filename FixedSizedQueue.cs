@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
+
 
 namespace Microsoft.Samples.Kinect.BodyBasics
 {

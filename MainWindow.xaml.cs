@@ -12,9 +12,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
-    using System.Timers;
-    using System.Collections.Generic;    
-    
+    using System.Collections.Generic;
+
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -56,19 +55,13 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// </summary>
         private static int oscPort = 22345;
 
-        private static FixedSizedQueue<HandState> previousHandLeftStates;
-
-        private static FixedSizedQueue<HandState> previousHandRightStates;
 
         private static HandState lastHandLeftState;
         private static HandState lastHandRightState;
         private const int MINIMUM_NUMBER_OF_STRESSED_BEATS = 3;
         private static bool timeSignatureIsEstablished = false;
         private static int stressedBeatsCounter = 0;
-        private static int totalBeatsCounter = 0;
         private static List<double> beatTimes;
-        private static Timer beatTimer;
-        private static int counter = 0;
 
         /// <summary>
         /// Current status text to display
@@ -80,11 +73,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// </summary>
         public MainWindow()
         {
-            previousHandLeftStates = new FixedSizedQueue<HandState>();
-            previousHandLeftStates.Limit = 5;
-
-            previousHandRightStates = new FixedSizedQueue<HandState>();
-            previousHandRightStates.Limit = 5;
 
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
@@ -230,60 +218,50 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         {
             return body.HandLeftState == HandState.Open
                    && body.HandRightState == HandState.Closed
-                   && previousHandLeftStates.GetLastEnqueued() == HandState.Closed
-                   && previousHandRightStates.GetLastEnqueued() == HandState.Closed;
+                   && lastHandLeftState == HandState.Closed
+                   && lastHandRightState == HandState.Closed;
         }
 
         private bool IsStressedBeat(Body body)
         {
-            return  body.HandLeftState == HandState.Open 
-                    && body.HandRightState == HandState.Open 
-                    && previousHandLeftStates.Contains(HandState.Closed) 
-                    && previousHandRightStates.Contains(HandState.Closed);
+            return body.HandLeftState == HandState.Closed
+                   && body.HandRightState == HandState.Open
+                   && lastHandLeftState == HandState.Closed
+                   && lastHandRightState == HandState.Closed;
         }
 
 
         private void CheckForTimeSignature(Body body, double timeInMilliseconds)
         {
+
             if (IsStressedBeat(body))
             {
-                if ((stressedBeatsCounter + 1) >= MINIMUM_NUMBER_OF_STRESSED_BEATS)
-                {
-                    Console.WriteLine("Establishing time signature");
-                    EstablishTimeSignature();
-                }
-                else
-                {
-                    stressedBeatsCounter++;
-                    Console.WriteLine("Stressed beat: " + stressedBeatsCounter);
-                    previousHandLeftStates.Clear();
-                    previousHandRightStates.Clear();
-                }
-
+                stressedBeatsCounter++;
+                Console.WriteLine("Stressed beat: " + stressedBeatsCounter);
+                Console.WriteLine("time: " + timeInMilliseconds);
+                beatTimes.Add(timeInMilliseconds);
             }
             else if (IsBeat(body))
             {
-                totalBeatsCounter++;
-                Console.WriteLine("Total beat: " + totalBeatsCounter);
+                Console.WriteLine("regular beat: " + beatTimes.Count);
+                Console.WriteLine("time: " + timeInMilliseconds);
                 beatTimes.Add(timeInMilliseconds);
-
             }
-
+            if (stressedBeatsCounter > MINIMUM_NUMBER_OF_STRESSED_BEATS)
+            {
+                stressedBeatsCounter--;
+                Console.WriteLine("Establishing time signature");
+                EstablishTimeSignature();
+                return;
+            }
 
         }
 
 
         private void EstablishTimeSignature()
         {
-            double sumOfBeatTimeDifferences = 0;
-            for (int i = 0; i < beatTimes.Count - 1; i++)
-            {
-                sumOfBeatTimeDifferences += beatTimes[i + 1] - beatTimes[i];
-            }
-            beatTimer = new Timer(sumOfBeatTimeDifferences / ((double)totalBeatsCounter));
-            beatTimer.Elapsed += SendBeat;
-            beatTimer.AutoReset = true;
-            beatTimer.Enabled = true;
+            TimeSignature timeSignature = new TimeSignature(beatTimes, stressedBeatsCounter);
+            timeSignature.Establish();
             timeSignatureIsEstablished = true;
         }
 
@@ -291,7 +269,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private void Process(BodyFrame bodyFrame)
         {
             TimeSpan relativeTime = bodyFrame.RelativeTime;
-            
+
             // Selects the first body that is tracked and use that for our calculations
             Body body = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
 
@@ -303,9 +281,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                     CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
                 }
 
-                previousHandLeftStates.Enqueue(body.HandLeftState);
-
-                previousHandRightStates.Enqueue(body.HandRightState);
 
                 lastHandLeftState = body.HandLeftState;
                 lastHandRightState = body.HandRightState;
@@ -313,21 +288,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
         }
 
-        private void SendBeat(Object source, ElapsedEventArgs e)
-        {
-            Instrument beatInstrument = new Instrument("beat");
-            int total = totalBeatsCounter + stressedBeatsCounter;
-            Console.WriteLine("TOTAL: " + total);
-            if (counter % ( Math.Round((total) / (double) stressedBeatsCounter) ) == 0)
-            {
-                beatInstrument.PlayNote(10);
-            }
-            else
-            {
-                beatInstrument.PlayNote(40);
-            }
-            counter++;
-        }
+
 
         /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).
