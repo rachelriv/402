@@ -82,10 +82,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
         public BodyDrawer(CoordinateMapper coordinateMapper, FrameDescription frameDescription, DrawingGroup drawingGroup)
         {
+            this.bones = (new BodyConstructor()).GetBones();
             this.coordinateMapper = coordinateMapper;
             this.displayHeight = frameDescription.Height;
             this.displayWidth = frameDescription.Width;
-            this.bones = (new BodyConstructor()).GetBones();
             this.drawingGroup = drawingGroup;
         }
 
