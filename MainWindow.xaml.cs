@@ -249,20 +249,11 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
             if (stressedBeatsCounter > MINIMUM_NUMBER_OF_STRESSED_BEATS)
             {
-                stressedBeatsCounter--;
                 Console.WriteLine("Establishing time signature");
-                EstablishTimeSignature();
-                return;
+                (new TimeSignature(beatTimes, stressedBeatsCounter - 1)).Establish();
+                timeSignatureIsEstablished = true;
             }
 
-        }
-
-
-        private void EstablishTimeSignature()
-        {
-            TimeSignature timeSignature = new TimeSignature(beatTimes, stressedBeatsCounter);
-            timeSignature.Establish();
-            timeSignatureIsEstablished = true;
         }
 
 
@@ -279,6 +270,13 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                 if (!timeSignatureIsEstablished)
                 {
                     CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
+                } else
+                {
+                    Console.WriteLine("other");
+                    Instrument i = new Instrument("beat");
+                    i.PlayNote(50,127, 500, 1, 1);
+                    Console.WriteLine("should be playing note");
+                    Filter f = new Filter("instr0");
                 }
 
 

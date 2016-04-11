@@ -6,7 +6,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
     class Instrument
     {
         public string name;
-        private Boolean sustain;
 
         public Instrument(string name)
         {
@@ -17,11 +16,11 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         {
         }
 
-        public void PlayNote(int pitch, int velocity = 127, int duration = 500, int midiChannel = 1)
+        public void PlayNote(int pitch, int velocity = 127, int duration = 500, int midiChannel = 1, int sustain = 0)
         {
 
-            Console.WriteLine("Playing: " + this.name + " " + pitch + " " + velocity + " " + duration + " " + midiChannel);
-            OscElement elem = new OscElement("/" + this.name, pitch, velocity, duration, midiChannel);
+            Console.WriteLine("Playing: " + this.name + " " + pitch + " " + velocity + " " + duration + " " + midiChannel + " " + sustain);
+            OscElement elem = new OscElement("/" + this.name, pitch, velocity, duration, midiChannel, sustain);
             MainWindow.osc.Send(elem);
         }
     }
