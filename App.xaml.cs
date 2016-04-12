@@ -4,7 +4,7 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-namespace Microsoft.Samples.Kinect.BodyBasics
+namespace Instrumovement
 {
     using System;
     using System.Windows;

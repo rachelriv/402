@@ -1,26 +1,67 @@
-﻿using System;
+﻿using Microsoft.Kinect;
+using System;
 using System.Collections.Generic;
 using System.Timers;
 
-namespace Microsoft.Samples.Kinect.BodyBasics
+namespace Instrumovement
 {
     internal class TimeSignature
     {
         private Timer beatTimer;
         private List<double> beatTimes;
         private int numOfStressedBeats;
+        public bool isEstablished;
         private int totalNumberOfBeatsPlayed;
+        private const int MINIMUM_NUM_OF_STRESSED_BEATS = 3;
 
-        public TimeSignature(List<double> beatTimes, int numOfStressedBeats)
+        private bool IsBeat()
         {
-            this.beatTimes = beatTimes;
-            this.numOfStressedBeats = numOfStressedBeats;
-            Console.WriteLine("TOTAL BEATS: " + beatTimes.Count);
-            Console.WriteLine("STRESSED BEATS: " + numOfStressedBeats);
-            totalNumberOfBeatsPlayed = 0;
+            return MainWindow.currentBody.HandLeftState == HandState.Open
+                   && MainWindow.currentBody.HandRightState == HandState.Closed
+                   && MainWindow.lastHandLeftState == HandState.Closed
+                   && MainWindow.lastHandRightState == HandState.Closed;
         }
 
-        public void Establish()
+        private bool IsStressedBeat()
+        {
+            return MainWindow.currentBody.HandLeftState == HandState.Closed
+                   && MainWindow.currentBody.HandRightState == HandState.Open
+                   && MainWindow.lastHandLeftState == HandState.Closed
+                   && MainWindow.lastHandRightState == HandState.Closed;
+        }
+
+
+        public void CheckForBeats(double timeInMilliseconds)
+        {
+            if (IsStressedBeat())
+            {
+                Console.WriteLine("Stressed beat: " + numOfStressedBeats);
+                beatTimes.Add(timeInMilliseconds);
+                numOfStressedBeats++;
+            }
+            else if (IsBeat())
+            {
+                Console.WriteLine("Regular beat: " + beatTimes.Count);
+                beatTimes.Add(timeInMilliseconds);
+            }
+
+            if (numOfStressedBeats > MINIMUM_NUM_OF_STRESSED_BEATS)
+            {
+                Console.WriteLine("Establishing time signature");
+                numOfStressedBeats--;
+                Establish();
+            }
+        }
+
+        public TimeSignature()
+        {
+            this.beatTimes = new List<double>();
+            this.numOfStressedBeats = 0;
+            this.isEstablished = false;
+            this.totalNumberOfBeatsPlayed = 0;
+        }
+
+        private void Establish()
         {
             double sumOfBeatTimeDifferences = 0;
             for (int i = 0; i < beatTimes.Count - 1; i++)
@@ -31,6 +72,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             beatTimer.Elapsed += SendBeat;
             beatTimer.AutoReset = true;
             beatTimer.Enabled = true;
+            this.isEstablished = true;
         }
 
         private void SendBeat(Object source, ElapsedEventArgs e)

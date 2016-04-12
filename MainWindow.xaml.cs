@@ -4,7 +4,7 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-namespace Microsoft.Samples.Kinect.BodyBasics
+namespace Instrumovement
 {
     using System;
     using System.ComponentModel;
@@ -56,8 +56,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static int oscPort = 22345;
 
 
-        private static HandState lastHandLeftState;
-        private static HandState lastHandRightState;
+        public static HandState lastHandLeftState;
+        public static HandState lastHandRightState;
         private const int MINIMUM_NUMBER_OF_STRESSED_BEATS = 3;
         private static bool timeSignatureIsEstablished = false;
         private static int stressedBeatsCounter = 0;
@@ -65,6 +65,10 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static double pitch = 0;
         private static bool goingUp = true;
         private static bool goingDown = false;
+
+        private static TimeSignature timeSignature;
+
+        public static Body currentBody;
 
         private static bool currentlyPlayingNote = false;
 
@@ -80,6 +84,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         /// </summary>
         public MainWindow()
         {
+
+            timeSignature = new TimeSignature();
 
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
@@ -223,47 +229,6 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
         }
 
-        private bool IsBeat(Body body)
-        {
-            return body.HandLeftState == HandState.Open
-                   && body.HandRightState == HandState.Closed
-                   && lastHandLeftState == HandState.Closed
-                   && lastHandRightState == HandState.Closed;
-        }
-
-        private bool IsStressedBeat(Body body)
-        {
-            return body.HandLeftState == HandState.Closed
-                   && body.HandRightState == HandState.Open
-                   && lastHandLeftState == HandState.Closed
-                   && lastHandRightState == HandState.Closed;
-        }
-
-
-        private void CheckForTimeSignature(Body body, double timeInMilliseconds)
-        {
-
-            if (IsStressedBeat(body))
-            {
-                stressedBeatsCounter++;
-                Console.WriteLine("Stressed beat: " + stressedBeatsCounter);
-                Console.WriteLine("time: " + timeInMilliseconds);
-                beatTimes.Add(timeInMilliseconds);
-            }
-            else if (IsBeat(body))
-            {
-                Console.WriteLine("regular beat: " + beatTimes.Count);
-                Console.WriteLine("time: " + timeInMilliseconds);
-                beatTimes.Add(timeInMilliseconds);
-            }
-            if (stressedBeatsCounter > MINIMUM_NUMBER_OF_STRESSED_BEATS)
-            {
-                Console.WriteLine("Establishing time signature");
-                (new TimeSignature(beatTimes, stressedBeatsCounter - 1)).Establish();
-                timeSignatureIsEstablished = true;
-            }
-
-        }
 
 
         private void Process(BodyFrame bodyFrame)
@@ -275,57 +240,58 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
             if (body != null && body.IsTracked)
             {
-                drawer.Draw(body);
-                /*      if (!timeSignatureIsEstablished)
-                      {
-                          CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
-                      }*/
-                // else
-                //{
-                Instrument i = new Instrument("instr0");
-
-                if (body.HandLeftState == HandState.Open && !currentlyPlayingNote)
+                currentBody = body;
+                drawer.Draw();
+                if (!timeSignature.isEstablished)
                 {
-
-
-
-
-                    OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 1);
-                    osc.Send(elem);
-                    Console.WriteLine("sending elem");
-
-                    //          OscElement elem2 = new OscElement("/sustain3", 0);
-                    //         osc.Send(elem2);
-                    //           i.PlayNote(30, 1000, 10, 1, 1);
-                    currentlyPlayingNote = true;
+                    timeSignature.CheckForBeats(relativeTime.TotalMilliseconds);
                 }
-                if (currentlyPlayingNote)
+                else
                 {
-                    if (goingUp && pitch < 50) { pitch += .2; }
-                    else if (goingUp && pitch >= 50) { goingUp = false; goingDown = true; }
-                    else if (goingDown && pitch > 1 ){ pitch -= .2; }
-                    else if (goingDown && pitch <= 1) { goingUp = true;  goingDown = false;  }
-                    osc.Send(new OscElement("/test", (float)pitch));
-                    
+                    Instrument i = new Instrument("instr0");
 
-                    //    Filter f = new Filter("instr0");
-                    //    f.SendFilterData(body);
-
-                    if (body.HandLeftState == HandState.Closed)
+                    if (body.HandLeftState == HandState.Open && !currentlyPlayingNote)
                     {
-                        OscElement elem = new OscElement("/sustain3", 0);
+
+
+
+
+                        OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 1);
                         osc.Send(elem);
-                        //           Console.WriteLine("STOP NOTE");
-                        //           i.StopNote();
-                        currentlyPlayingNote = false;
+                        Console.WriteLine("sending elem");
+
+                        //          OscElement elem2 = new OscElement("/sustain3", 0);
+                        //         osc.Send(elem2);
+                        //           i.PlayNote(30, 1000, 10, 1, 1);
+                        currentlyPlayingNote = true;
                     }
+                    if (currentlyPlayingNote)
+                    {
+                        if (goingUp && pitch < 50) { pitch += .2; }
+                        else if (goingUp && pitch >= 50) { goingUp = false; goingDown = true; }
+                        else if (goingDown && pitch > 1) { pitch -= .2; }
+                        else if (goingDown && pitch <= 1) { goingUp = true; goingDown = false; }
+                        osc.Send(new OscElement("/test", (float)pitch));
 
 
+                        //    Filter f = new Filter("instr0");
+                        //    f.SendFilterData(body);
+
+                        if (body.HandLeftState == HandState.Closed)
+                        {
+                            OscElement elem = new OscElement("/sustain3", 0);
+                            osc.Send(elem);
+                            //           Console.WriteLine("STOP NOTE");
+                            //           i.StopNote();
+                            currentlyPlayingNote = false;
+                        }
+
+                    }
                 }
 
 
-                lastHandLeftState = body.HandLeftState;
-                lastHandRightState = body.HandRightState;
+                lastHandLeftState = currentBody.HandLeftState;
+                lastHandRightState = currentBody.HandRightState;
             }
 
         }

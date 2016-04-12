@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 
-namespace Microsoft.Samples.Kinect.BodyBasics
+namespace Instrumovement
 {
     class BodyDrawer
     {
@@ -187,8 +187,9 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             }
         }
 
-        public void Draw(Body body)
+        public void Draw()
         {
+            Body body = MainWindow.currentBody;
             using (DrawingContext dc = this.drawingGroup.Open())
             {
 

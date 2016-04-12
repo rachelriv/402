@@ -1,7 +1,7 @@
 ﻿using System;
 using Ventuz.OSC;
 
-namespace Microsoft.Samples.Kinect.BodyBasics
+namespace Instrumovement
 {
     class Instrument
     {

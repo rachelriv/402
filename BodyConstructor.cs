@@ -1,4 +1,4 @@
-﻿namespace Microsoft.Samples.Kinect.BodyBasics
+﻿namespace Instrumovement
 {
     using System;
     using System.Collections.Generic;
