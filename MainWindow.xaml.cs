@@ -62,11 +62,16 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static bool timeSignatureIsEstablished = false;
         private static int stressedBeatsCounter = 0;
         private static List<double> beatTimes;
+        private static double pitch = 0;
+
+        private static bool currentlyPlayingNote = false;
 
         /// <summary>
         /// Current status text to display
         /// </summary>
         public static UdpWriter osc;
+
+        public static UdpWriter oscBeat;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -76,6 +81,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
             // Set up OSC
             osc = new UdpWriter(oscHost, oscPort);
+
+            oscBeat = new UdpWriter(oscHost, 8000);
 
             beatTimes = new List<double>();
 
@@ -267,16 +274,48 @@ namespace Microsoft.Samples.Kinect.BodyBasics
             if (body != null && body.IsTracked)
             {
                 drawer.Draw(body);
-                if (!timeSignatureIsEstablished)
+                /*      if (!timeSignatureIsEstablished)
+                      {
+                          CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
+                      }*/
+                // else
+                //{
+                Instrument i = new Instrument("instr0");
+
+                if (body.HandLeftState == HandState.Open && !currentlyPlayingNote)
                 {
-                    CheckForTimeSignature(body, relativeTime.TotalMilliseconds);
-                } else
+
+
+
+
+                    OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 0);
+                    osc.Send(elem);
+                    Console.WriteLine("sending elem");
+
+                    //          OscElement elem2 = new OscElement("/sustain3", 0);
+                    //         osc.Send(elem2);
+                    //           i.PlayNote(30, 1000, 10, 1, 1);
+                    currentlyPlayingNote = true;
+                }
+                if (currentlyPlayingNote)
                 {
-                    Console.WriteLine("other");
-                    Instrument i = new Instrument("beat");
-                    i.PlayNote(50,127, 500, 1, 1);
-                    Console.WriteLine("should be playing note");
-                    Filter f = new Filter("instr0");
+                    if (pitch > 100) { pitch = 0; }
+                    osc.Send(new OscElement("/test", (float)pitch));
+                    pitch += .1;
+
+                    //    Filter f = new Filter("instr0");
+                    //    f.SendFilterData(body);
+
+                    if (body.HandLeftState == HandState.Closed)
+                    {
+                        OscElement elem = new OscElement("/sustain3", 0);
+                        osc.Send(elem);
+                        //           Console.WriteLine("STOP NOTE");
+                        //           i.StopNote();
+                        currentlyPlayingNote = false;
+                    }
+
+
                 }
 
 
