@@ -63,6 +63,8 @@ namespace Microsoft.Samples.Kinect.BodyBasics
         private static int stressedBeatsCounter = 0;
         private static List<double> beatTimes;
         private static double pitch = 0;
+        private static bool goingUp = true;
+        private static bool goingDown = false;
 
         private static bool currentlyPlayingNote = false;
 
@@ -288,7 +290,7 @@ namespace Microsoft.Samples.Kinect.BodyBasics
 
 
 
-                    OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 0);
+                    OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 1);
                     osc.Send(elem);
                     Console.WriteLine("sending elem");
 
@@ -299,9 +301,12 @@ namespace Microsoft.Samples.Kinect.BodyBasics
                 }
                 if (currentlyPlayingNote)
                 {
-                    if (pitch > 100) { pitch = 0; }
+                    if (goingUp && pitch < 50) { pitch += .2; }
+                    else if (goingUp && pitch >= 50) { goingUp = false; goingDown = true; }
+                    else if (goingDown && pitch > 1 ){ pitch -= .2; }
+                    else if (goingDown && pitch <= 1) { goingUp = true;  goingDown = false;  }
                     osc.Send(new OscElement("/test", (float)pitch));
-                    pitch += .1;
+                    
 
                     //    Filter f = new Filter("instr0");
                     //    f.SendFilterData(body);
