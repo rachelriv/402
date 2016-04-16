@@ -75,7 +75,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="JointPositions.cs" />
+    <Compile Include="TimedPosition.cs" />
     <Compile Include="TimeSignature.cs" />
+    <Compile Include="VelocityComputer.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

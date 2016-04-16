@@ -21,6 +21,8 @@ namespace Instrumovement
     {
         BodyDrawer drawer = null;
 
+        public static JointPositions jointPositions;
+
         private ImageSource imageSource;
 
         /// <summary>
@@ -84,6 +86,8 @@ namespace Instrumovement
         /// </summary>
         public MainWindow()
         {
+
+            jointPositions = new JointPositions();
 
             timeSignature = new TimeSignature();
 
@@ -222,6 +226,10 @@ namespace Instrumovement
                     // As long as those body objects are not disposed and not set to null in the array,
                     // those body objects will be re-used.
                     bodyFrame.GetAndRefreshBodyData(this.bodies);
+                   // Console.WriteLine("BODY LENGTH: " + this.bodies.Length);
+                   
+
+                    //                    bodyFrames.AddFrame(bodyFrame);
 
                     // Run the core body processing routine
                     Process(bodyFrame);
@@ -229,22 +237,38 @@ namespace Instrumovement
             }
         }
 
+        public static CameraSpacePoint CopyPosition(CameraSpacePoint position)
+        {
+            CameraSpacePoint result = new CameraSpacePoint();
+            result.X = position.X;
+            result.Y = position.Y;
+            result.Z = position.Z;
+            return result;
+        }
+
 
 
         private void Process(BodyFrame bodyFrame)
         {
-            TimeSpan relativeTime = bodyFrame.RelativeTime;
+            double currentTime = bodyFrame.RelativeTime.TotalMilliseconds;
 
             // Selects the first body that is tracked and use that for our calculations
             Body body = System.Linq.Enumerable.FirstOrDefault(this.bodies, bod => bod.IsTracked);
 
             if (body != null && body.IsTracked)
             {
+                TimedPosition timedPositionOfHandLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.HandLeft].Position));
+                jointPositions.AddPosition(JointType.HandLeft, timedPositionOfHandLeft);
+
+                TimedPosition timedPositionOfShoulderLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ShoulderLeft].Position));
+                jointPositions.AddPosition(JointType.ShoulderLeft, timedPositionOfShoulderLeft);
+
+                Console.WriteLine("RELATIVE VELOCITY: " + VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft));
                 currentBody = body;
                 drawer.Draw();
                 if (!timeSignature.isEstablished)
                 {
-                    timeSignature.CheckForBeats(relativeTime.TotalMilliseconds);
+                    timeSignature.CheckForBeats(currentTime);
                 }
                 else
                 {
