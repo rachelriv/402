@@ -12,7 +12,6 @@ namespace Instrumovement
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
-    using System.Collections.Generic;
 
     /// <summary>
     /// Interaction logic for MainWindow
@@ -60,19 +59,16 @@ namespace Instrumovement
 
         public static HandState lastHandLeftState;
         public static HandState lastHandRightState;
-        private const int MINIMUM_NUMBER_OF_STRESSED_BEATS = 3;
-        private static bool timeSignatureIsEstablished = false;
-        private static int stressedBeatsCounter = 0;
-        private static List<double> beatTimes;
-        private static double pitch = 0;
-        private static bool goingUp = true;
-        private static bool goingDown = false;
+
 
         private static TimeSignature timeSignature;
 
         public static Body currentBody;
 
         private static bool currentlyPlayingNote = false;
+
+        private static bool currentlyPlayingFastNote = false;
+        private static bool currentlyPlayingSlowNote = false;
 
         /// <summary>
         /// Current status text to display
@@ -95,8 +91,6 @@ namespace Instrumovement
             osc = new UdpWriter(oscHost, oscPort);
 
             oscBeat = new UdpWriter(oscHost, 8000);
-
-            beatTimes = new List<double>();
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -226,8 +220,8 @@ namespace Instrumovement
                     // As long as those body objects are not disposed and not set to null in the array,
                     // those body objects will be re-used.
                     bodyFrame.GetAndRefreshBodyData(this.bodies);
-                   // Console.WriteLine("BODY LENGTH: " + this.bodies.Length);
-                   
+                    // Console.WriteLine("BODY LENGTH: " + this.bodies.Length);
+
 
                     //                    bodyFrames.AddFrame(bodyFrame);
 
@@ -263,55 +257,79 @@ namespace Instrumovement
                 TimedPosition timedPositionOfShoulderLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ShoulderLeft].Position));
                 jointPositions.AddPosition(JointType.ShoulderLeft, timedPositionOfShoulderLeft);
 
-                Console.WriteLine("RELATIVE VELOCITY: " + VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft));
+
                 currentBody = body;
                 drawer.Draw();
-                if (!timeSignature.isEstablished)
-                {
-                    timeSignature.CheckForBeats(currentTime);
-                }
-                else
-                {
-                    Instrument i = new Instrument("instr0");
+                Instrument i = new Instrument("suhdude");
+                Instrument fast = new Instrument("instr1");
+                Instrument slow = new Instrument("instr0");
 
-                    if (body.HandLeftState == HandState.Open && !currentlyPlayingNote)
+
+                /*    if (currentBody.HandLeftState == HandState.Lasso && !currentlyPlayingNote)
                     {
-
-
-
-
-                        OscElement elem = new OscElement("/instr3", 60, 127, 1000, 1, 1);
-                        osc.Send(elem);
-                        Console.WriteLine("sending elem");
-
-                        //          OscElement elem2 = new OscElement("/sustain3", 0);
-                        //         osc.Send(elem2);
-                        //           i.PlayNote(30, 1000, 10, 1, 1);
+                        i.PlayNote(60, 127, 500, 1, 0);
                         currentlyPlayingNote = true;
                     }
-                    if (currentlyPlayingNote)
+
+
+                    if (currentBody.HandLeftState == HandState.Closed)
                     {
-                        if (goingUp && pitch < 50) { pitch += .2; }
-                        else if (goingUp && pitch >= 50) { goingUp = false; goingDown = true; }
-                        else if (goingDown && pitch > 1) { pitch -= .2; }
-                        else if (goingDown && pitch <= 1) { goingUp = true; goingDown = false; }
-                        osc.Send(new OscElement("/test", (float)pitch));
-
-
-                        //    Filter f = new Filter("instr0");
-                        //    f.SendFilterData(body);
-
-                        if (body.HandLeftState == HandState.Closed)
-                        {
-                            OscElement elem = new OscElement("/sustain3", 0);
-                            osc.Send(elem);
-                            //           Console.WriteLine("STOP NOTE");
-                            //           i.StopNote();
-                            currentlyPlayingNote = false;
-                        }
-
+                        i.StopNote();
+                        currentlyPlayingNote = false;
                     }
+
+         /*           if (!timeSignature.isEstablished)
+                    {
+                        timeSignature.CheckForBeats(currentTime);
+                    }
+                    else
+                    {*/
+                if (currentBody.HandLeftState == HandState.Open)
+                {
+                    double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
+
+
+                    if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
+                    {
+                        if (currentlyPlayingSlowNote)
+                        {
+                            slow.StopNote();
+                            currentlyPlayingSlowNote = false;
+                        }
+                        int pitch = (int)((currentBody.Joints[JointType.HandLeft].Position.X) * 100) % 200 + 100;
+                        fast.PlayNote(pitch);
+                        currentlyPlayingFastNote = true;
+                    }
+                    else if (handShoulderRelativeVelocity <= 2.0)
+                    {
+                        double vol = ((currentBody.Joints[JointType.HandLeft].Position.Z) * 100) % 200 + 20;
+                  //      OscElement vol2 = new OscElement("/instr0vol", vol);
+                   //     osc.Send(vol2);
+                        if (!currentlyPlayingSlowNote)
+                        {
+                            if (currentlyPlayingFastNote)
+                            {
+                                fast.StopNote();
+                                currentlyPlayingFastNote = false;
+                            }
+                            slow.PlayNote(60);
+                            currentlyPlayingSlowNote = true;
+
+                        }
+                    }
+
+
+
+
                 }
+                if (currentBody.HandLeftState == HandState.Closed)
+                {
+                    slow.StopNote();
+                    fast.StopNote();
+                    currentlyPlayingSlowNote = false;
+                    currentlyPlayingFastNote = false;
+                }
+                //  }
 
 
                 lastHandLeftState = currentBody.HandLeftState;

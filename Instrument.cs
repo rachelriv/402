@@ -32,7 +32,7 @@ namespace Instrumovement
         
         public void StopNote()
         {
-            OscElement elem = new OscElement("/stopinstr0", 1);
+            OscElement elem = new OscElement("/stop" + name, 1);
             MainWindow.osc.Send(elem);
         }
     }

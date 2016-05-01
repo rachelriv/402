@@ -18,15 +18,19 @@ namespace Instrumovement
         {
             return MainWindow.currentBody.HandLeftState == HandState.Open
                    && MainWindow.currentBody.HandRightState == HandState.Closed
-                   && MainWindow.lastHandLeftState == HandState.Closed
-                   && MainWindow.lastHandRightState == HandState.Closed;
+                   && BothHandsLastClosed();
         }
 
         private bool IsStressedBeat()
         {
             return MainWindow.currentBody.HandLeftState == HandState.Closed
                    && MainWindow.currentBody.HandRightState == HandState.Open
-                   && MainWindow.lastHandLeftState == HandState.Closed
+                   && BothHandsLastClosed();
+        }
+
+        private bool BothHandsLastClosed()
+        {
+            return MainWindow.lastHandLeftState == HandState.Closed
                    && MainWindow.lastHandRightState == HandState.Closed;
         }
 
@@ -37,6 +41,12 @@ namespace Instrumovement
             {
                 Console.WriteLine("Stressed beat: " + numOfStressedBeats);
                 beatTimes.Add(timeInMilliseconds);
+                if (numOfStressedBeats == MINIMUM_NUM_OF_STRESSED_BEATS)
+                {
+                    Console.WriteLine("Establishing time signature");
+                    Establish();
+                    return;
+                }
                 numOfStressedBeats++;
             }
             else if (IsBeat())
@@ -45,12 +55,6 @@ namespace Instrumovement
                 beatTimes.Add(timeInMilliseconds);
             }
 
-            if (numOfStressedBeats > MINIMUM_NUM_OF_STRESSED_BEATS)
-            {
-                Console.WriteLine("Establishing time signature");
-                numOfStressedBeats--;
-                Establish();
-            }
         }
 
         public TimeSignature()
@@ -80,7 +84,7 @@ namespace Instrumovement
             Instrument beatInstrument = new Instrument("beat");
             if (totalNumberOfBeatsPlayed % (Math.Round(beatTimes.Count/ ((double) numOfStressedBeats))) == 0)
             {
-                beatInstrument.PlayNote(10);
+                beatInstrument.PlayNote(20);
             }
             else
             {

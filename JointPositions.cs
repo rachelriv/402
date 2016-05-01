@@ -37,7 +37,8 @@ namespace Instrumovement
 
         public bool PositionExistsAt(JointType joint, int n)
         {
-            return (n <= previousPositionsOf[joint].Count - 1) &&
+            return (previousPositionsOf.ContainsKey(joint)) &&
+                   (n <= previousPositionsOf[joint].Count - 1) &&
                    (n >= 0) &&
                    (previousPositionsOf[joint][previousPositionsOf[joint].Count - n - 1] != null);
         }
