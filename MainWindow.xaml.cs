@@ -6,13 +6,11 @@
 
 namespace Instrumovement
 {
-    using System;
     using System.ComponentModel;
     using System.Windows;
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
-
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -44,19 +42,6 @@ namespace Instrumovement
         /// </summary>
         private string statusText = null;
 
-        // =========  OSC ===========
-        /// <summary>
-        /// The host ip address (the computer with Ableton + Max for Live on it).
-        /// </summary>
-        private String oscHost = "127.0.0.1";
-
-
-        /// <summary>
-        /// The port Ableton + Max for Live is listening on for UDP messages.
-        /// </summary>
-        private static int oscPort = 22345;
-
-
         public static HandState lastHandLeftState;
         public static HandState lastHandRightState;
 
@@ -69,13 +54,8 @@ namespace Instrumovement
 
         private static bool currentlyPlayingFastNote = false;
         private static bool currentlyPlayingSlowNote = false;
+        private static bool mel = false;
 
-        /// <summary>
-        /// Current status text to display
-        /// </summary>
-        public static UdpWriter osc;
-
-        public static UdpWriter oscBeat;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -87,10 +67,7 @@ namespace Instrumovement
 
             timeSignature = new TimeSignature();
 
-            // Set up OSC
-            osc = new UdpWriter(oscHost, oscPort);
 
-            oscBeat = new UdpWriter(oscHost, 8000);
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -260,9 +237,20 @@ namespace Instrumovement
 
                 currentBody = body;
                 drawer.Draw();
-                Instrument i = new Instrument("suhdude");
-                Instrument fast = new Instrument("instr1");
-                Instrument slow = new Instrument("instr0");
+                Instrument i = new Instrument("suhdude", "127.0.0.1", 22345);
+                Instrument fast = new Instrument("instr1", "127.0.0.1", 22345);
+                Instrument slow = new Instrument("instr0", "127.0.0.1", 22345);
+                Instrument melody = new Instrument("melody", "127.0.0.1", 22345);
+
+            
+
+                    if (!timeSignature.isEstablished)
+                    {
+                        timeSignature.CheckForBeats(currentTime);
+                    }
+
+
+
 
 
                 /*    if (currentBody.HandLeftState == HandState.Lasso && !currentlyPlayingNote)
@@ -276,60 +264,57 @@ namespace Instrumovement
                     {
                         i.StopNote();
                         currentlyPlayingNote = false;
-                    }
-
-         /*           if (!timeSignature.isEstablished)
-                    {
-                        timeSignature.CheckForBeats(currentTime);
-                    }
-                    else
-                    {*/
-                if (currentBody.HandLeftState == HandState.Open)
-                {
-                    double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
+                    }*/
 
 
-                    if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
-                    {
-                        if (currentlyPlayingSlowNote)
-                        {
-                            slow.StopNote();
-                            currentlyPlayingSlowNote = false;
-                        }
-                        int pitch = (int)((currentBody.Joints[JointType.HandLeft].Position.X) * 100) % 200 + 100;
-                        fast.PlayNote(pitch);
-                        currentlyPlayingFastNote = true;
-                    }
-                    else if (handShoulderRelativeVelocity <= 2.0)
-                    {
-                        double vol = ((currentBody.Joints[JointType.HandLeft].Position.Z) * 100) % 200 + 20;
-                  //      OscElement vol2 = new OscElement("/instr0vol", vol);
-                   //     osc.Send(vol2);
-                        if (!currentlyPlayingSlowNote)
-                        {
-                            if (currentlyPlayingFastNote)
-                            {
-                                fast.StopNote();
-                                currentlyPlayingFastNote = false;
-                            }
-                            slow.PlayNote(60);
-                            currentlyPlayingSlowNote = true;
+                /* else
+                 {
+             if (currentBody.HandLeftState == HandState.Open)
+             {
+                 double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
 
-                        }
-                    }
+
+                 if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
+                 {
+                     if (currentlyPlayingSlowNote)
+                     {
+                         slow.StopNote();
+                         currentlyPlayingSlowNote = false;
+                     }
+                     int pitch = (int)((currentBody.Joints[JointType.HandLeft].Position.X) * 100) % 200 + 100;
+                     fast.PlayNote(pitch);
+                     currentlyPlayingFastNote = true;
+                 }
+                 else if (handShoulderRelativeVelocity <= 2.0)
+                 {
+                     double vol = ((currentBody.Joints[JointType.HandLeft].Position.Z) * 100) % 200 + 20;
+               //      OscElement vol2 = new OscElement("/instr0vol", vol);
+                //     osc.Send(vol2);
+                     if (!currentlyPlayingSlowNote)
+                     {
+                         if (currentlyPlayingFastNote)
+                         {
+                             fast.StopNote();
+                             currentlyPlayingFastNote = false;
+                         }
+                         slow.PlayNote(60);
+                         currentlyPlayingSlowNote = true;
+
+                     }
+                 }
 
 
 
 
-                }
-                if (currentBody.HandLeftState == HandState.Closed)
-                {
-                    slow.StopNote();
-                    fast.StopNote();
-                    currentlyPlayingSlowNote = false;
-                    currentlyPlayingFastNote = false;
-                }
-                //  }
+             }
+             if (currentBody.HandLeftState == HandState.Closed)
+             {
+                 slow.StopNote();
+                 fast.StopNote();
+                 currentlyPlayingSlowNote = false;
+                 currentlyPlayingFastNote = false;
+             }
+             //  }*/
 
 
                 lastHandLeftState = currentBody.HandLeftState;

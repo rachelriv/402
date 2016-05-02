@@ -5,35 +5,43 @@ namespace Instrumovement
 {
     class Instrument
     {
-        public string name;
 
-        public Instrument(string name)
+        /// <summary>
+        /// UDP Writer that writes messages to the host & port that Ableton + Max for Live is listening on
+        /// </summary>
+        private UdpWriter osc;
+
+        public void Loop()
+        {
+            OscElement loop = new OscElement("/" + this.name + "loop", 1);
+            osc.Send(loop);
+        }
+
+        private int midiChannel = 1;
+
+        private string name;
+
+        public Instrument(string name, string oscHost, int oscPort)
         {
             this.name = name;
+            this.osc = new UdpWriter(oscHost, oscPort);
         }
 
-        public Instrument()
-        {
-        }
-
-        public void PlayNote(int pitch, int velocity = 127, int duration = 500, int midiChannel = 1, int sustain = 0)
+        public void PlayNote(int pitch, int velocity = 127, int duration = 500, int sustain = 0)
         {
             
-            Console.WriteLine("Playing: " + this.name + " " + pitch + " " + velocity + " " + duration + " " + midiChannel + " " + sustain);
-            OscElement elem = new OscElement("/" + this.name, pitch, velocity, duration, midiChannel, sustain);
-            if (name == "beat")
-            {
-                MainWindow.oscBeat.Send(elem);
-            } else
-            {
-                MainWindow.osc.Send(elem);
-            }
+            Console.WriteLine("Playing: " + this.name + 
+                              " pitch: " + pitch + 
+                              " velocity: " + velocity + 
+                              " duration: " + duration + 
+                              " sustain: " + sustain);
+            this.osc.Send(new OscElement("/" + this.name + "start", pitch, velocity, duration, midiChannel, sustain));
         }
         
         public void StopNote()
         {
-            OscElement elem = new OscElement("/stop" + name, 1);
-            MainWindow.osc.Send(elem);
+            Console.WriteLine("Stoping: " + this.name);
+            this.osc.Send(new OscElement("/" + this.name + "stop", 1));
         }
     }
 }
