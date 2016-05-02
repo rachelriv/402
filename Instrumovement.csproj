@@ -75,10 +75,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="JointPositions.cs" />
-    <Compile Include="TimedPosition.cs" />
-    <Compile Include="TimeSignature.cs" />
-    <Compile Include="VelocityComputer.cs" />
+    <Compile Include="BodyTracking\JointPositions.cs" />
+    <Compile Include="BodyTracking\TimedPosition.cs" />
+    <Compile Include="Music\TimeSignature.cs" />
+    <Compile Include="BodyTracking\VelocityComputer.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -87,9 +87,9 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="BodyConstructor.cs" />
-    <Compile Include="BodyDrawer.cs" />
-    <Compile Include="Instrument.cs" />
+    <Compile Include="Drawing\BodyInitializer.cs" />
+    <Compile Include="Drawing\Drawer.cs" />
+    <Compile Include="Music\Instrument.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

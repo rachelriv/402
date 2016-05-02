@@ -1,6 +1,6 @@
 ﻿using Microsoft.Kinect;
 
-namespace Instrumovement
+namespace Instrumovement.BodyTracking
 {
     public class TimedPosition
     {

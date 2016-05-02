@@ -9,19 +9,19 @@ namespace Instrumovement
         /// <summary>
         /// UDP Writer that writes messages to the host & port that Ableton + Max for Live is listening on
         /// </summary>
-        private UdpWriter osc;
+        public UdpWriter osc;
 
-        public void Loop()
+
+        public void AlterPitch(int pitch)
         {
-            OscElement loop = new OscElement("/" + this.name + "loop", 1);
-            osc.Send(loop);
+            this.osc.Send(new OscElement("/" + this.name + "pitch", pitch));
         }
 
         private int midiChannel = 1;
 
         private string name;
 
-        public Instrument(string name, string oscHost, int oscPort)
+        public Instrument(string name, string oscHost = "127.0.0.1", int oscPort = 22345)
         {
             this.name = name;
             this.osc = new UdpWriter(oscHost, oscPort);
@@ -35,7 +35,7 @@ namespace Instrumovement
                               " velocity: " + velocity + 
                               " duration: " + duration + 
                               " sustain: " + sustain);
-            this.osc.Send(new OscElement("/" + this.name + "start", pitch, velocity, duration, midiChannel, sustain));
+            this.osc.Send(new OscElement("/" + this.name + "start", pitch, velocity, midiChannel, duration, sustain));
         }
         
         public void StopNote()

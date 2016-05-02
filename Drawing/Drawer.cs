@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 
-namespace Instrumovement
+namespace Instrumovement.Drawing
 {
     class BodyDrawer
     {
@@ -78,11 +78,11 @@ namespace Instrumovement
         /// </summary>        
         private readonly Pen inferredBonePen = new Pen(Brushes.Gray, 1);
 
-        private List<Tuple<JointType, JointType>> bones;
+        private List<Tuple<JointType, JointType>> bonesToDraw;
 
         public BodyDrawer(CoordinateMapper coordinateMapper, FrameDescription frameDescription, DrawingGroup drawingGroup)
         {
-            this.bones = (new BodyConstructor()).GetBones();
+            this.bonesToDraw = (new BodyInitializer()).GetBones();
             this.coordinateMapper = coordinateMapper;
             this.displayHeight = frameDescription.Height;
             this.displayWidth = frameDescription.Width;
@@ -187,6 +187,9 @@ namespace Instrumovement
             }
         }
 
+        /// <summary>
+        /// Draws background, body, and hand state.
+        /// </summary>
         public void Draw()
         {
             Body body = MainWindow.currentBody;
@@ -236,7 +239,7 @@ namespace Instrumovement
                 DepthSpacePoint depthSpacePoint = this.coordinateMapper.MapCameraPointToDepthSpace(position);
                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
             }
-            foreach (var bone in this.bones)
+            foreach (var bone in this.bonesToDraw)
             {
                 this.DrawBone(joints, jointPoints, bone.Item1, bone.Item2, drawingContext, drawingPen);
             }

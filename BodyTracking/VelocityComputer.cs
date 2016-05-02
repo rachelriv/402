@@ -1,17 +1,25 @@
 ﻿using System;
 using Microsoft.Kinect;
 
-namespace Instrumovement
+namespace Instrumovement.BodyTracking
 {
     internal class VelocityComputer
     {
-        
+
+        /// <summary>
+        /// Calculates the relative velocity of a joint referencing to a second one.</summary>
+        /// <param name="steady">
+        /// The referenctial JointType.</param>
+        /// <param name="moving">
+        /// The moving JointType of interest</param>
+        /// <returns>
+        /// Returns the relative velocity in meters</returns>
         public static double GetRelativeVelocity(JointType steady, JointType moving)
         {
             if (!(MainWindow.jointPositions.PositionExistsAt(steady, 0) && MainWindow.jointPositions.PositionExistsAt(steady, 1) &&
                 MainWindow.jointPositions.PositionExistsAt(steady, 2) 
                 && MainWindow.jointPositions.PositionExistsAt(moving, 0) && MainWindow.jointPositions.PositionExistsAt(moving, 1)
-              && MainWindow.jointPositions.PositionExistsAt(moving, 2) ))
+                && MainWindow.jointPositions.PositionExistsAt(moving, 2) ))
             {
                 return 0;
             }
@@ -34,7 +42,7 @@ namespace Instrumovement
             );
         }
 
-        public static double DistanceBetweenPoints(CameraSpacePoint point1, CameraSpacePoint point2)
+        private static double DistanceBetweenPoints(CameraSpacePoint point1, CameraSpacePoint point2)
         {
             double dx = Math.Abs(point2.X - point1.X);
             double dy = Math.Abs(point2.Y - point1.Y);

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Instrumovement
+namespace Instrumovement.BodyTracking
 {
     public class JointPositions
     {
@@ -54,7 +54,6 @@ namespace Instrumovement
 
         public double MillisBetweenPositions(JointType joint, int first, int second)
         {
-
             return previousPositionsOf[joint][previousPositionsOf[joint].Count - second - 1].timestamp -
                  previousPositionsOf[joint][previousPositionsOf[joint].Count - first - 1].timestamp;
         }

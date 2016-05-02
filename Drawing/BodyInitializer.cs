@@ -1,13 +1,21 @@
-﻿namespace Instrumovement
+﻿namespace Instrumovement.Drawing
 {
     using System;
     using System.Collections.Generic;
     using Microsoft.Kinect;
 
-    internal class BodyConstructor
+    internal class BodyInitializer
     {
+        /// <summary>
+        /// List of bones
+        /// A bone is defined as a line between two joints
+        /// </summary>
         private List<Tuple<JointType, JointType>> bones;
-        public BodyConstructor()
+
+        /// <summary>
+        /// Initialize all bones of a body
+        /// </summary>
+        public BodyInitializer()
         {
             bones = new List<Tuple<JointType, JointType>>();
 
@@ -46,6 +54,7 @@
             bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.FootLeft));
 
         }
+
 
         public List<Tuple<JointType, JointType>> GetBones()
         {

@@ -1,22 +1,19 @@
-﻿//------------------------------------------------------------------------------
-// <copyright file="MainWindow.xaml.cs" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-//------------------------------------------------------------------------------
-
-namespace Instrumovement
+﻿namespace Instrumovement
 {
     using System.ComponentModel;
     using System.Windows;
     using System.Windows.Media;
     using Microsoft.Kinect;
     using Ventuz.OSC;
+    using System;
+    using Instrumovement.Drawing;
+    using Instrumovement.BodyTracking;
+
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        BodyDrawer drawer = null;
 
         public static JointPositions jointPositions;
 
@@ -26,11 +23,16 @@ namespace Instrumovement
         /// Active Kinect sensor
         /// </summary>
         private KinectSensor kinectSensor = null;
-
+        
         /// <summary>
         /// Reader for body frames
         /// </summary>
         private BodyFrameReader bodyFrameReader = null;
+
+        /// <summary>
+        /// Reader for body frames
+        /// </summary>
+        private BodyDrawer drawer = null;
 
         /// <summary>
         /// Array for the bodies
@@ -66,7 +68,6 @@ namespace Instrumovement
             jointPositions = new JointPositions();
 
             timeSignature = new TimeSignature();
-
 
 
             // one sensor is currently supported
@@ -197,10 +198,6 @@ namespace Instrumovement
                     // As long as those body objects are not disposed and not set to null in the array,
                     // those body objects will be re-used.
                     bodyFrame.GetAndRefreshBodyData(this.bodies);
-                    // Console.WriteLine("BODY LENGTH: " + this.bodies.Length);
-
-
-                    //                    bodyFrames.AddFrame(bodyFrame);
 
                     // Run the core body processing routine
                     Process(bodyFrame);
@@ -234,88 +231,68 @@ namespace Instrumovement
                 TimedPosition timedPositionOfShoulderLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ShoulderLeft].Position));
                 jointPositions.AddPosition(JointType.ShoulderLeft, timedPositionOfShoulderLeft);
 
+                TimedPosition timedPositionOfElbowLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ElbowLeft].Position));
+                jointPositions.AddPosition(JointType.ElbowLeft, timedPositionOfElbowLeft);
 
                 currentBody = body;
                 drawer.Draw();
-                Instrument i = new Instrument("suhdude", "127.0.0.1", 22345);
+                Instrument i = new Instrument("beat0", "127.0.0.1", 22345);
                 Instrument fast = new Instrument("instr1", "127.0.0.1", 22345);
                 Instrument slow = new Instrument("instr0", "127.0.0.1", 22345);
                 Instrument melody = new Instrument("melody", "127.0.0.1", 22345);
 
-            
+                if (!timeSignature.isEstablished)
+                {
+                    timeSignature.CheckForBeats();
+                }
+                else
+                {
+                    double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
 
-                    if (!timeSignature.isEstablished)
+                    if (currentBody.HandLeftState == HandState.Open && currentBody.HandRightState == HandState.Open)
                     {
-                        timeSignature.CheckForBeats(currentTime);
+                        if (currentlyPlayingSlowNote)
+                        {
+                            OscElement elem = new OscElement("/test", (new Random()).NextDouble());
+                            UdpWriter test = new UdpWriter("127.0.0.1", 9001);
+                            test.Send(elem);
+                        }
+                        if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
+                        {
+                            if (currentlyPlayingSlowNote)
+                            {
+                                slow.StopNote();
+                                currentlyPlayingSlowNote = false;
+                            }
+                            fast.PlayNote(60);
+                            currentlyPlayingFastNote = true;
+                        }
+                        else if (handShoulderRelativeVelocity <= 2.0 && !currentlyPlayingSlowNote)
+                        {
+;
+                            if (!currentlyPlayingSlowNote)
+                            {
+                                if (currentlyPlayingFastNote)
+                                {
+                                    fast.StopNote();
+                                    currentlyPlayingFastNote = false;
+                                }
+                                slow.PlayNote(60, 127, 500, 1);
+                                currentlyPlayingSlowNote = true;
+
+                            }
+                        }
                     }
 
 
-
-
-
-                /*    if (currentBody.HandLeftState == HandState.Lasso && !currentlyPlayingNote)
+                    else if (currentBody.HandLeftState == HandState.Closed && currentBody.HandRightState == HandState.Closed)
                     {
-                        i.PlayNote(60, 127, 500, 1, 0);
-                        currentlyPlayingNote = true;
+                        slow.StopNote();
+                        fast.StopNote();
+                        currentlyPlayingSlowNote = false;
+                        currentlyPlayingFastNote = false;
                     }
-
-
-                    if (currentBody.HandLeftState == HandState.Closed)
-                    {
-                        i.StopNote();
-                        currentlyPlayingNote = false;
-                    }*/
-
-
-                /* else
-                 {
-             if (currentBody.HandLeftState == HandState.Open)
-             {
-                 double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
-
-
-                 if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
-                 {
-                     if (currentlyPlayingSlowNote)
-                     {
-                         slow.StopNote();
-                         currentlyPlayingSlowNote = false;
-                     }
-                     int pitch = (int)((currentBody.Joints[JointType.HandLeft].Position.X) * 100) % 200 + 100;
-                     fast.PlayNote(pitch);
-                     currentlyPlayingFastNote = true;
-                 }
-                 else if (handShoulderRelativeVelocity <= 2.0)
-                 {
-                     double vol = ((currentBody.Joints[JointType.HandLeft].Position.Z) * 100) % 200 + 20;
-               //      OscElement vol2 = new OscElement("/instr0vol", vol);
-                //     osc.Send(vol2);
-                     if (!currentlyPlayingSlowNote)
-                     {
-                         if (currentlyPlayingFastNote)
-                         {
-                             fast.StopNote();
-                             currentlyPlayingFastNote = false;
-                         }
-                         slow.PlayNote(60);
-                         currentlyPlayingSlowNote = true;
-
-                     }
-                 }
-
-
-
-
-             }
-             if (currentBody.HandLeftState == HandState.Closed)
-             {
-                 slow.StopNote();
-                 fast.StopNote();
-                 currentlyPlayingSlowNote = false;
-                 currentlyPlayingFastNote = false;
-             }
-             //  }*/
-
+                }
 
                 lastHandLeftState = currentBody.HandLeftState;
                 lastHandRightState = currentBody.HandRightState;
@@ -323,9 +300,7 @@ namespace Instrumovement
 
         }
 
-
-
-        /// <summary>
+         /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).
         /// </summary>
         /// <param name="sender">object sending the event</param>
