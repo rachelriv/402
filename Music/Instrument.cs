@@ -3,9 +3,9 @@ using Ventuz.OSC;
 
 namespace Instrumovement
 {
-    class Instrument
+    public class Instrument
     {
-
+        
         /// <summary>
         /// UDP Writer that writes messages to the host & port that Ableton + Max for Live is listening on
         /// </summary>

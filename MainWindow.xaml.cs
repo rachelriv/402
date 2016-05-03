@@ -8,6 +8,7 @@
     using System;
     using Instrumovement.Drawing;
     using Instrumovement.BodyTracking;
+    using System.Collections.Generic;
 
     /// <summary>
     /// Interaction logic for MainWindow
@@ -20,6 +21,16 @@
         public static JointRecords jointRecords;
 
         /// <summary>
+        ///  List of instruments
+        /// </summary>
+        public static Instrument[] instruments;
+
+        /// <summary>
+        /// Mapping of steady/moving joint velocity to instrument number
+        /// </summary>
+        public static Dictionary<Tuple<JointType, JointType>, int[]> instrumentForJointVelocity = new Dictionary<Tuple<JointType, JointType>, int[]>();
+
+        /// <summary>
         /// Drawing image that we will display
         /// </summary>
         private ImageSource imageSource;
@@ -28,7 +39,7 @@
         /// Active Kinect sensor
         /// </summary>
         private KinectSensor kinectSensor = null;
-        
+
         /// <summary>
         /// Reader for body frames
         /// </summary>
@@ -49,28 +60,55 @@
         /// </summary>
         private string statusText = null;
 
+        /// <summary>
+        /// Body of current frame 
+        /// </summary>
+        public static Body currentBody;
+
+        /// <summary>
+        /// Last states of hands
+        /// </summary>
         public static HandState lastHandLeftState;
         public static HandState lastHandRightState;
 
+        /// <summary>
+        /// Time signature object that establishes the rhythm of the music
+        /// </summary>
         private static TimeSignature timeSignature;
 
-        public static Body currentBody;
+        /// <summary>
+        /// Dictionary indicating which instruments are currretly playing
+        /// </summary>
+        private static Dictionary<int, bool> currentInstrumentsPlaying = new Dictionary<int, bool>();
 
-
-        private static bool currentlyPlayingFastNote = false;
-        private static bool currentlyPlayingSlowNote = false;
-
+        private const int TOTAL_NUMBER_OF_INSTRUMENTS = 10;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
+            // Initialize the instruments; 
+            // each following naming convention of instr0, instr1, ...
+            instruments = new Instrument[TOTAL_NUMBER_OF_INSTRUMENTS];
+            for (int i = 0; i < TOTAL_NUMBER_OF_INSTRUMENTS; i++)
+            {
+                instruments[i] = new Instrument("instr" + i);
+                currentInstrumentsPlaying.Add(i, false);
+            }
 
+            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft), new int[] { 0, 1 });
+            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.HandRight), new int[] { 2, 3 });
+            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.FootLeft), new int[] { 4, 5 });
+            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.FootRight), new int[] { 6, 7 });
+            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ShoulderRight), new int[] { 8, 9 });
+
+
+            // records of previous joint positions
             jointRecords = new JointRecords();
 
+            // initialize time signature
             timeSignature = new TimeSignature();
-
 
             // one sensor is currently supported
             this.kinectSensor = KinectSensor.GetDefault();
@@ -81,7 +119,6 @@
 
             // open the reader for the body frames
             this.bodyFrameReader = this.kinectSensor.BodyFrameSource.OpenReader();
-
 
             // set IsAvailableChanged event notifier
             this.kinectSensor.IsAvailableChanged += this.Sensor_IsAvailableChanged;
@@ -170,7 +207,6 @@
                 this.bodyFrameReader.Dispose();
                 this.bodyFrameReader = null;
             }
-
             if (this.kinectSensor != null)
             {
                 this.kinectSensor.Close();
@@ -206,8 +242,6 @@
         }
 
 
-
-
         private void Process(BodyFrame bodyFrame)
         {
             double currentTime = bodyFrame.RelativeTime.TotalMilliseconds;
@@ -219,12 +253,11 @@
             {
                 currentBody = body;
 
-                jointRecords.AddRecordForEachJoint(currentTime);
-
                 drawer.Draw();
 
-                Instrument fast = new Instrument("instr1", "127.0.0.1", 22345);
-                Instrument slow = new Instrument("instr0", "127.0.0.1", 22345);
+                // add all joint positions to the records
+                jointRecords.AddRecordForEachJoint(currentTime);
+
 
                 if (!timeSignature.isEstablished)
                 {
@@ -232,50 +265,37 @@
                 }
                 else
                 {
-                    double handShoulderRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
+                    double leftShoulderHandRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
 
-                    if (currentBody.HandLeftState == HandState.Open && currentBody.HandRightState == HandState.Open)
+                    if (leftShoulderHandRelativeVelocity > 2.0 && !currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]]) 
                     {
-                        if (currentlyPlayingSlowNote)
+                        if (currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]])
                         {
-                            OscElement elem = new OscElement("/test", (new Random()).NextDouble());
-                            UdpWriter test = new UdpWriter("127.0.0.1", 9001);
-                            test.Send(elem);
+                            instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].StopNote();
+                            currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = false;
                         }
-                        if (handShoulderRelativeVelocity > 2.0 && !currentlyPlayingFastNote)
+                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].PlayNote(60);
+                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = true;
+                    }
+                    else if (leftShoulderHandRelativeVelocity <= 2.0 && leftShoulderHandRelativeVelocity > 1.0 && !currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]])
+                    {
+                        if (currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]])
                         {
-                            if (currentlyPlayingSlowNote)
-                            {
-                                slow.StopNote();
-                                currentlyPlayingSlowNote = false;
-                            }
-                            fast.PlayNote(60);
-                            currentlyPlayingFastNote = true;
+                            instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].StopNote();
+                            currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = false;
                         }
-                        else if (handShoulderRelativeVelocity <= 2.0 && !currentlyPlayingSlowNote)
-                        {
-;
-                            if (!currentlyPlayingSlowNote)
-                            {
-                                if (currentlyPlayingFastNote)
-                                {
-                                    fast.StopNote();
-                                    currentlyPlayingFastNote = false;
-                                }
-                                slow.PlayNote(60, 127, 500, 1);
-                                currentlyPlayingSlowNote = true;
-
-                            }
-                        }
+                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].PlayNote(60, 127, 500, 1);
+                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = true;
                     }
 
 
-                    else if (currentBody.HandLeftState == HandState.Closed && currentBody.HandRightState == HandState.Closed)
+                    if (currentBody.HandLeftState == HandState.Closed && currentBody.HandRightState == HandState.Closed)
                     {
-                        slow.StopNote();
-                        fast.StopNote();
-                        currentlyPlayingSlowNote = false;
-                        currentlyPlayingFastNote = false;
+                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].StopNote();
+                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].StopNote();
+                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = false;
+                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = false;
+
                     }
                 }
 
@@ -285,7 +305,7 @@
 
         }
 
-         /// <summary>
+        /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).
         /// </summary>
         /// <param name="sender">object sending the event</param>
