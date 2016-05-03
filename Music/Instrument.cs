@@ -11,6 +11,7 @@ namespace Instrumovement
         /// </summary>
         public UdpWriter osc;
 
+        public bool isPlaying;
 
         public void AlterPitch(int pitch)
         {
@@ -25,6 +26,7 @@ namespace Instrumovement
         {
             this.name = name;
             this.osc = new UdpWriter(oscHost, oscPort);
+            isPlaying = false;
         }
 
         public void PlayNote(int pitch, int velocity = 127, int duration = 500, int sustain = 0)
@@ -36,12 +38,15 @@ namespace Instrumovement
                               " duration: " + duration + 
                               " sustain: " + sustain);
             this.osc.Send(new OscElement("/" + this.name + "start", pitch, velocity, midiChannel, duration, sustain));
+            isPlaying = true;
         }
+
         
         public void StopNote()
         {
             Console.WriteLine("Stoping: " + this.name);
             this.osc.Send(new OscElement("/" + this.name + "stop", 1));
+            isPlaying = false;
         }
     }
 }

@@ -11,7 +11,7 @@ namespace Instrumovement
 
         private Instrument beat;
 
-        private UdpWriter recordingState;
+        private static UdpWriter recordingState = new UdpWriter("127.0.0.1", 9001);
 
         private const int STRESSED_BEAT_PITCH = 40;
 
@@ -22,8 +22,7 @@ namespace Instrumovement
         public TimeSignature()
         {
             beat = new Instrument(BEAT_NAME);
-            recordingState = new UdpWriter("127.0.0.1", 9001);
-            recordingState.Send(new OscElement("/" + BEAT_NAME + "state", "Overdub"));
+            recordingState.Send(new OscElement("/beat0state", "Overdub"));
         }
 
         private bool IsBeat()
@@ -62,7 +61,7 @@ namespace Instrumovement
 
         private void Establish()
         {
-            recordingState.Send(new OscElement("/" + BEAT_NAME + "state", "Play"));
+            recordingState.Send(new OscElement("/" + BEAT_NAME + "state", "Stop"));
             this.isEstablished = true;
         }
 

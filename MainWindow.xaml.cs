@@ -4,7 +4,6 @@
     using System.Windows;
     using System.Windows.Media;
     using Microsoft.Kinect;
-    using Ventuz.OSC;
     using System;
     using Instrumovement.Drawing;
     using Instrumovement.BodyTracking;
@@ -28,7 +27,7 @@
         /// <summary>
         /// Mapping of steady/moving joint velocity to instrument number
         /// </summary>
-        public static Dictionary<Tuple<JointType, JointType>, int[]> instrumentForJointVelocity = new Dictionary<Tuple<JointType, JointType>, int[]>();
+        public static Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>> instrumentsForJointPair = new Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>>();
 
         /// <summary>
         /// Drawing image that we will display
@@ -76,32 +75,54 @@
         /// </summary>
         private static TimeSignature timeSignature;
 
-        /// <summary>
-        /// Dictionary indicating which instruments are currretly playing
-        /// </summary>
-        private static Dictionary<int, bool> currentInstrumentsPlaying = new Dictionary<int, bool>();
+        
+        private static Dictionary<String, Tuple<JointType, JointType>> steadyMovingVelocityPairs = new Dictionary<string, Tuple<JointType, JointType>>();
 
-        private const int TOTAL_NUMBER_OF_INSTRUMENTS = 10;
+
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
-            // Initialize the instruments; 
-            // each following naming convention of instr0, instr1, ...
-            instruments = new Instrument[TOTAL_NUMBER_OF_INSTRUMENTS];
-            for (int i = 0; i < TOTAL_NUMBER_OF_INSTRUMENTS; i++)
-            {
-                instruments[i] = new Instrument("instr" + i);
-                currentInstrumentsPlaying.Add(i, false);
-            }
 
-            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft), new int[] { 0, 1 });
-            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.HandRight), new int[] { 2, 3 });
-            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.FootLeft), new int[] { 4, 5 });
-            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.FootRight), new int[] { 6, 7 });
-            instrumentForJointVelocity.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ShoulderRight), new int[] { 8, 9 });
+            steadyMovingVelocityPairs.Add("shoulderHandLeft", new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft));
+            steadyMovingVelocityPairs.Add("shoulderHandRight", new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.HandRight));
+            steadyMovingVelocityPairs.Add("hipFootLeft", new Tuple<JointType, JointType>(JointType.HipLeft, JointType.FootLeft));
+            steadyMovingVelocityPairs.Add("hipFootRight", new Tuple<JointType, JointType>(JointType.HipRight, JointType.FootRight));
+            steadyMovingVelocityPairs.Add("shoulderLeftRight", new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ShoulderRight));
+
+
+            Dictionary<String, Instrument> instrumentsForShoulderHandLeft = new Dictionary<string, Instrument>();
+            instrumentsForShoulderHandLeft.Add("Slow", new Instrument("instr0"));
+            instrumentsForShoulderHandLeft.Add("Fast", new Instrument("instr1"));
+
+            instrumentsForJointPair.Add(steadyMovingVelocityPairs["shoulderHandLeft"], instrumentsForShoulderHandLeft);
+
+            Dictionary<String, Instrument> instrumentsForShoulderHandRight = new Dictionary<string, Instrument>();
+            instrumentsForShoulderHandRight.Add("Slow", new Instrument("instr2"));
+            instrumentsForShoulderHandRight.Add("Fast", new Instrument("instr3"));
+
+            instrumentsForJointPair.Add(steadyMovingVelocityPairs["shoulderHandRight"], instrumentsForShoulderHandRight);
+
+            Dictionary<String, Instrument> instrumentsForHipFootLeft = new Dictionary<string, Instrument>();
+            instrumentsForHipFootLeft.Add("Slow", new Instrument("instr4"));
+            instrumentsForHipFootLeft.Add("Fast", new Instrument("instr5"));
+
+            instrumentsForJointPair.Add(steadyMovingVelocityPairs["hipFootLeft"], instrumentsForHipFootLeft);
+
+            Dictionary<String, Instrument> instrumentsForHipFootRight = new Dictionary<string, Instrument>();
+            instrumentsForHipFootRight.Add("Slow", new Instrument("instr6"));
+            instrumentsForHipFootRight.Add("Fast", new Instrument("instr7"));
+
+            instrumentsForJointPair.Add(steadyMovingVelocityPairs["hipFootRight"], instrumentsForHipFootRight);
+
+            Dictionary<String, Instrument> instrumentsForShoudlerLeftRight = new Dictionary<string, Instrument>();
+            instrumentsForShoudlerLeftRight.Add("Slow", new Instrument("instr4"));
+            instrumentsForShoudlerLeftRight.Add("Fast", new Instrument("instr5"));
+
+            instrumentsForJointPair.Add(steadyMovingVelocityPairs["shoulderLeftRight"], instrumentsForShoudlerLeftRight);
+
 
 
             // records of previous joint positions
@@ -265,37 +286,25 @@
                 }
                 else
                 {
+
                     double leftShoulderHandRelativeVelocity = VelocityComputer.GetRelativeVelocity(JointType.ShoulderLeft, JointType.HandLeft);
 
-                    if (leftShoulderHandRelativeVelocity > 2.0 && !currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]]) 
+                    if (leftShoulderHandRelativeVelocity > 2.0)
                     {
-                        if (currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]])
-                        {
-                            instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].StopNote();
-                            currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = false;
-                        }
-                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].PlayNote(60);
-                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = true;
-                    }
-                    else if (leftShoulderHandRelativeVelocity <= 2.0 && leftShoulderHandRelativeVelocity > 1.0 && !currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]])
+                        PlayFastNoteForJointPair(steadyMovingVelocityPairs["shoulderHandLeft"]);
+                    } else if (leftShoulderHandRelativeVelocity > .5)
                     {
-                        if (currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]])
-                        {
-                            instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].StopNote();
-                            currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = false;
-                        }
-                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].PlayNote(60, 127, 500, 1);
-                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = true;
+                        PlaySlowNoteForJointPair(steadyMovingVelocityPairs["shoulderHandLeft"]);
+                    } else
+                    {
+                        StopAll();
                     }
 
+              
 
                     if (currentBody.HandLeftState == HandState.Closed && currentBody.HandRightState == HandState.Closed)
                     {
-                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]].StopNote();
-                        instruments[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]].StopNote();
-                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][0]] = false;
-                        currentInstrumentsPlaying[instrumentForJointVelocity[new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft)][1]] = false;
-
+                        StopAll();
                     }
                 }
 
@@ -303,6 +312,41 @@
                 lastHandRightState = currentBody.HandRightState;
             }
 
+        }
+
+        private void StopAll()
+        {
+            foreach (Dictionary<String, Instrument> instrumentMapping in instrumentsForJointPair.Values)
+            {
+                foreach (Instrument i in instrumentMapping.Values)
+                {
+                    i.StopNote();
+                }
+            }
+        }
+
+        private void PlaySlowNoteForJointPair(Tuple<JointType, JointType> jointPair)
+        {
+            if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
+            {
+                if (instrumentsForJointPair[jointPair]["Fast"].isPlaying)
+                {
+                    instrumentsForJointPair[jointPair]["Fast"].StopNote();
+                }
+                instrumentsForJointPair[jointPair]["Slow"].PlayNote(60, 127, 500, 1);
+            }
+        }
+
+        private void PlayFastNoteForJointPair(Tuple<JointType, JointType> jointPair)
+        {
+            if (!instrumentsForJointPair[jointPair]["Fast"].isPlaying)
+            {
+                if (instrumentsForJointPair[jointPair]["Slow"].isPlaying)
+                {
+                    instrumentsForJointPair[jointPair]["Slow"].StopNote();
+                }
+                instrumentsForJointPair[jointPair]["Fast"].PlayNote(60);
+            }
         }
 
         /// <summary>
