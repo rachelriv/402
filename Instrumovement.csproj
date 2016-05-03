@@ -75,7 +75,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="BodyTracking\JointPositions.cs" />
+    <Compile Include="BodyTracking\JointRecords.cs" />
     <Compile Include="BodyTracking\TimedPosition.cs" />
     <Compile Include="Music\TimeSignature.cs" />
     <Compile Include="BodyTracking\VelocityComputer.cs" />

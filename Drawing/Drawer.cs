@@ -198,7 +198,6 @@ namespace Instrumovement.Drawing
 
                 dc.DrawRectangle(Brushes.LightBlue, null, new Rect(0.0, 0.0, this.displayWidth, this.displayHeight));
 
-
                 this.DrawClippedEdges(body, dc);
 
                 IReadOnlyDictionary<JointType, Joint> joints = body.Joints;

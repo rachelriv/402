@@ -4,11 +4,14 @@ using System.Collections.Generic;
 
 namespace Instrumovement.BodyTracking
 {
-    public class JointPositions
+    /// <summary>
+    /// Frames of previous joint positions and their corresponding timestamps
+    /// </summary>
+    public class JointRecords
     {
         private Dictionary<JointType, List<TimedPosition>> previousPositionsOf;
 
-        public JointPositions()
+        public JointRecords()
         {
             previousPositionsOf = new Dictionary<JointType, List<TimedPosition>>();
         }
@@ -32,7 +35,25 @@ namespace Instrumovement.BodyTracking
                 previousPositionsOf.Add(joint, timedPositions);
             }
 
+        }
 
+        public void AddRecordForEachJoint(double currentTime)
+        {
+            foreach (JointType jointType in MainWindow.currentBody.Joints.Keys)
+            {
+                TimedPosition timedPositionOfJoint = new TimedPosition(currentTime, CopyPosition(MainWindow.currentBody.Joints[jointType].Position));
+                this.AddPosition(jointType, timedPositionOfJoint);
+            }
+
+        }
+
+        private static CameraSpacePoint CopyPosition(CameraSpacePoint position)
+        {
+            CameraSpacePoint result = new CameraSpacePoint();
+            result.X = position.X;
+            result.Y = position.Y;
+            result.Z = position.Z;
+            return result;
         }
 
         public bool PositionExistsAt(JointType joint, int n)

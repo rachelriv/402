@@ -14,9 +14,14 @@
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        /// <summary>
+        /// Collection of joint positions with their timestamps kept for calculating velocity
+        /// </summary>
+        public static JointRecords jointRecords;
 
-        public static JointPositions jointPositions;
-
+        /// <summary>
+        /// Drawing image that we will display
+        /// </summary>
         private ImageSource imageSource;
 
         /// <summary>
@@ -47,16 +52,13 @@
         public static HandState lastHandLeftState;
         public static HandState lastHandRightState;
 
-
         private static TimeSignature timeSignature;
 
         public static Body currentBody;
 
-        private static bool currentlyPlayingNote = false;
 
         private static bool currentlyPlayingFastNote = false;
         private static bool currentlyPlayingSlowNote = false;
-        private static bool mel = false;
 
 
         /// <summary>
@@ -65,7 +67,7 @@
         public MainWindow()
         {
 
-            jointPositions = new JointPositions();
+            jointRecords = new JointRecords();
 
             timeSignature = new TimeSignature();
 
@@ -100,8 +102,6 @@
             // initialize the components (controls) of the window
             this.InitializeComponent();
         }
-
-
 
         /// <summary>
         /// INotifyPropertyChangedPropertyChanged event to allow window controls to bind to changeable data
@@ -205,14 +205,6 @@
             }
         }
 
-        public static CameraSpacePoint CopyPosition(CameraSpacePoint position)
-        {
-            CameraSpacePoint result = new CameraSpacePoint();
-            result.X = position.X;
-            result.Y = position.Y;
-            result.Z = position.Z;
-            return result;
-        }
 
 
 
@@ -225,21 +217,14 @@
 
             if (body != null && body.IsTracked)
             {
-                TimedPosition timedPositionOfHandLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.HandLeft].Position));
-                jointPositions.AddPosition(JointType.HandLeft, timedPositionOfHandLeft);
-
-                TimedPosition timedPositionOfShoulderLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ShoulderLeft].Position));
-                jointPositions.AddPosition(JointType.ShoulderLeft, timedPositionOfShoulderLeft);
-
-                TimedPosition timedPositionOfElbowLeft = new TimedPosition(currentTime, CopyPosition(body.Joints[JointType.ElbowLeft].Position));
-                jointPositions.AddPosition(JointType.ElbowLeft, timedPositionOfElbowLeft);
-
                 currentBody = body;
+
+                jointRecords.AddRecordForEachJoint(currentTime);
+
                 drawer.Draw();
-                Instrument i = new Instrument("beat0", "127.0.0.1", 22345);
+
                 Instrument fast = new Instrument("instr1", "127.0.0.1", 22345);
                 Instrument slow = new Instrument("instr0", "127.0.0.1", 22345);
-                Instrument melody = new Instrument("melody", "127.0.0.1", 22345);
 
                 if (!timeSignature.isEstablished)
                 {
