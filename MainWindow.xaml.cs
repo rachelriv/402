@@ -294,11 +294,7 @@
                         {
                             PlayFastNoteForJointPair(jointPair);
                         }
-                       /* else if (relativeJointVelocity > .2 && (steadyMovingJointPairs["shoulderHandLeft"] == jointPair || steadyMovingJointPairs["shoulderHandRight"] == jointPair))
-                        {
-                            PlaySlowNoteForJointPair(jointPair);
-                        }*/
-                        else if (steadyMovingJointPairs["shoulderHandLeft"] == jointPair)
+                        else if ((steadyMovingJointPairs["shoulderHandLeft"] == jointPair || steadyMovingJointPairs["shoulderHandRight"] == jointPair)  && relativeJointVelocity > .2 && currentBody.HandRightState == HandState.Open)
                         {
                             PlaySlowNoteForJointPair(jointPair);
 
@@ -350,17 +346,15 @@
 
         private void PlaySlowNoteForJointPair(Tuple<JointType, JointType> jointPair)
         {
-       //     if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
-         //   {
+           if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
+           {
                 if (instrumentsForJointPair[jointPair]["Fast"].isPlaying)
                 {
-                    instrumentsForJointPair[jointPair]["Fast"].StopNote();
+                    instrumentsForJointPair[jointPair]["Fast"].StopNote(); 
                 }
-                int pitch = (new Random()).Next(100);
-                instrumentsForJointPair[jointPair]["Slow"].PlayNote(60, 127, 500, 1);
-           // }
-         //   else
-          //  {
+                int pitch = (int) (currentBody.Joints[JointType.HandLeft].Position.Y * 30) + 80 ;
+                instrumentsForJointPair[jointPair]["Slow"].PlayNote(50 , 127, 50, 1);
+            }
         }
 
         private void PlayFastNoteForJointPair(Tuple<JointType, JointType> jointPair)
