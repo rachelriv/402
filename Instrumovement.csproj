@@ -77,6 +77,9 @@
     </ApplicationDefinition>
     <Compile Include="BodyTracking\JointRecords.cs" />
     <Compile Include="BodyTracking\TimedPosition.cs" />
+    <Compile Include="Config\InstrumentMappings.cs" />
+    <Compile Include="Config\JointPairMappings.cs" />
+    <Compile Include="Music\SoundCreator.cs" />
     <Compile Include="Music\TimeSignature.cs" />
     <Compile Include="BodyTracking\VelocityComputer.cs" />
     <Page Include="MainWindow.xaml">

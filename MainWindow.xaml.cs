@@ -5,10 +5,12 @@
     using System.Windows.Media;
     using Microsoft.Kinect;
     using System;
-    using Instrumovement.Drawing;
-    using Instrumovement.BodyTracking;
+    using Drawing;
+    using BodyTracking;
+    using Config;
+    using Music;
     using System.Collections.Generic;
-    using Ventuz.OSC;
+
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -20,14 +22,9 @@
         public static JointRecords jointRecords;
 
         /// <summary>
-        ///  List of instruments
+        /// Mapping of steady/moving joint velocity to instrument numbers
         /// </summary>
-        public static Instrument[] instruments;
-
-        /// <summary>
-        /// Mapping of steady/moving joint velocity to instrument number
-        /// </summary>
-        public static Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>> instrumentsForJointPair = new Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>>();
+        public static Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>> instrumentsForJointPair = null;
 
         /// <summary>
         /// Drawing image that we will display
@@ -75,56 +72,21 @@
         /// </summary>
         private static TimeSignature timeSignature;
 
-        
-        private static Dictionary<String, Tuple<JointType, JointType>> steadyMovingJointPairs = new Dictionary<string, Tuple<JointType, JointType>>();
-
-
-
+        /// <summary>
+        /// Pairs of joints used for calculating relative velocity
+        /// </summary>
+        public static Dictionary<String, Tuple<JointType, JointType>> steadyMovingJointPairs = null;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
+            // initialize the joint pairs (one steady and one moving per pair)
+            JointPairMappings.Initialize();
 
-            steadyMovingJointPairs.Add("shoulderHandLeft", new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.HandLeft));
-            steadyMovingJointPairs.Add("shoulderHandRight", new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.HandRight));
-            steadyMovingJointPairs.Add("hipKneeLeft", new Tuple<JointType, JointType>(JointType.HipLeft, JointType.KneeLeft));
-            steadyMovingJointPairs.Add("hipKneeRight", new Tuple<JointType, JointType>(JointType.HipRight, JointType.KneeRight));
-            steadyMovingJointPairs.Add("shoulderLeftRight", new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ShoulderRight));
-
-
-            Dictionary<String, Instrument> instrumentsForShoulderHandLeft = new Dictionary<string, Instrument>();
-            instrumentsForShoulderHandLeft.Add("Slow", new Instrument("instr0"));
-            instrumentsForShoulderHandLeft.Add("Fast", new Instrument("instr1"));
-
-            instrumentsForJointPair.Add(steadyMovingJointPairs["shoulderHandLeft"], instrumentsForShoulderHandLeft);
-
-            Dictionary<String, Instrument> instrumentsForShoulderHandRight = new Dictionary<string, Instrument>();
-            instrumentsForShoulderHandRight.Add("Slow", new Instrument("instr2"));
-            instrumentsForShoulderHandRight.Add("Fast", new Instrument("instr3"));
-
-            instrumentsForJointPair.Add(steadyMovingJointPairs["shoulderHandRight"], instrumentsForShoulderHandRight);
-
-            Dictionary<String, Instrument> instrumentsForHipKneeLeft = new Dictionary<string, Instrument>();
-            instrumentsForHipKneeLeft.Add("Slow", new Instrument("instr4"));
-            instrumentsForHipKneeLeft.Add("Fast", new Instrument("instr5"));
-
-            instrumentsForJointPair.Add(steadyMovingJointPairs["hipKneeLeft"], instrumentsForHipKneeLeft);
-
-            Dictionary<String, Instrument> instrumentsForHipKneeRight = new Dictionary<string, Instrument>();
-            instrumentsForHipKneeRight.Add("Slow", new Instrument("instr6"));
-            instrumentsForHipKneeRight.Add("Fast", new Instrument("instr7"));
-
-            instrumentsForJointPair.Add(steadyMovingJointPairs["hipKneeRight"], instrumentsForHipKneeRight);
-
-            Dictionary<String, Instrument> instrumentsForShoudlerLeftRight = new Dictionary<string, Instrument>();
-            instrumentsForShoudlerLeftRight.Add("Slow", new Instrument("instr4"));
-            instrumentsForShoudlerLeftRight.Add("Fast", new Instrument("instr5"));
-
-            instrumentsForJointPair.Add(steadyMovingJointPairs["shoulderLeftRight"], instrumentsForShoudlerLeftRight);
-
-
+            // initialize the instruments used for each joint pair
+            InstrumentMappings.Initialize();
 
             // records of previous joint positions
             jointRecords = new JointRecords();
@@ -161,6 +123,7 @@
             // initialize the components (controls) of the window
             this.InitializeComponent();
         }
+
 
         /// <summary>
         /// INotifyPropertyChangedPropertyChanged event to allow window controls to bind to changeable data
@@ -280,94 +243,25 @@
                 // add all joint positions to the records
                 jointRecords.AddRecordForEachJoint(currentTime);
 
-
+                // Main sound mapping logic
+                // First, establish the time signature (with specific gestures)
+                // Then, do general sound-movement mappings
                 if (!timeSignature.isEstablished)
                 {
                     timeSignature.CheckForBeats();
                 }
                 else
                 {
-                    foreach (Tuple<JointType, JointType> jointPair in steadyMovingJointPairs.Values)
-                    {
-                        double relativeJointVelocity = VelocityComputer.GetRelativeVelocity(jointPair);
-                        if (relativeJointVelocity > 2.0)
-                        {
-                            PlayFastNoteForJointPair(jointPair);
-                        }
-                        else if ((steadyMovingJointPairs["shoulderHandLeft"] == jointPair || steadyMovingJointPairs["shoulderHandRight"] == jointPair)  && relativeJointVelocity > .2 && currentBody.HandRightState == HandState.Open)
-                        {
-                            PlaySlowNoteForJointPair(jointPair);
-
-                        }
-                        else
-                        {
-                            StopInstrumentFor(jointPair);
-
-                        }
-
-                    }
-
-
-
-
-
-
-              
-
-                    if (currentBody.HandLeftState == HandState.Closed && currentBody.HandRightState == HandState.Closed)
-                    {
-                        StopAll();
-                    }
+                    SoundCreator.Create();
                 }
 
+                // update last hand state
                 lastHandLeftState = currentBody.HandLeftState;
                 lastHandRightState = currentBody.HandRightState;
             }
 
         }
-        private void StopInstrumentFor(Tuple<JointType, JointType> jointPair)
-        {
-            foreach (Instrument i in instrumentsForJointPair[jointPair].Values)
-            {
-                i.StopNote();
-            }
-        }
-
-        private void StopAll()
-        {
-            foreach (Dictionary<String, Instrument> instrumentMapping in instrumentsForJointPair.Values)
-            {
-                foreach (Instrument i in instrumentMapping.Values)
-                {
-                    i.StopNote();
-                }
-            }
-        }
-
-        private void PlaySlowNoteForJointPair(Tuple<JointType, JointType> jointPair)
-        {
-           if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
-           {
-                if (instrumentsForJointPair[jointPair]["Fast"].isPlaying)
-                {
-                    instrumentsForJointPair[jointPair]["Fast"].StopNote(); 
-                }
-                int pitch = (int) (currentBody.Joints[JointType.HandLeft].Position.Y * 30) + 80 ;
-                instrumentsForJointPair[jointPair]["Slow"].PlayNote(50 , 127, 50, 1);
-            }
-        }
-
-        private void PlayFastNoteForJointPair(Tuple<JointType, JointType> jointPair)
-        {
-            if (!instrumentsForJointPair[jointPair]["Fast"].isPlaying)
-            {
-                if (instrumentsForJointPair[jointPair]["Slow"].isPlaying)
-                {
-                    instrumentsForJointPair[jointPair]["Slow"].StopNote();
-                }
-                instrumentsForJointPair[jointPair]["Fast"].PlayNote(60);
-            }
-        }
+ 
 
         /// <summary>
         /// Handles the event which the sensor becomes unavailable (E.g. paused, closed, unplugged).
