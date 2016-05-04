@@ -61,7 +61,7 @@ namespace Instrumovement
 
         private void Establish()
         {
-            recordingState.Send(new OscElement("/" + BEAT_NAME + "state", "Stop"));
+            recordingState.Send(new OscElement("/" + BEAT_NAME + "state", "Play"));
             this.isEstablished = true;
         }
 

@@ -46,12 +46,12 @@
             // Right Leg
             bones.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.KneeRight));
             bones.Add(new Tuple<JointType, JointType>(JointType.KneeRight, JointType.AnkleRight));
-            bones.Add(new Tuple<JointType, JointType>(JointType.AnkleRight, JointType.FootRight));
+            bones.Add(new Tuple<JointType, JointType>(JointType.AnkleRight, JointType.KneeRight));
 
             // Left Leg
             bones.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.KneeLeft));
             bones.Add(new Tuple<JointType, JointType>(JointType.KneeLeft, JointType.AnkleLeft));
-            bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.FootLeft));
+            bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.KneeLeft));
 
         }
 

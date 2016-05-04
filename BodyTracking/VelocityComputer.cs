@@ -42,6 +42,11 @@ namespace Instrumovement.BodyTracking
             );
         }
 
+        public static double GetRelativeVelocity(Tuple<JointType, JointType> jointPair)
+        {
+            return GetRelativeVelocity(jointPair.Item1, jointPair.Item2);
+        }
+
         private static double DistanceBetweenPoints(CameraSpacePoint point1, CameraSpacePoint point2)
         {
             double dx = Math.Abs(point2.X - point1.X);
