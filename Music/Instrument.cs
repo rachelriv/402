@@ -11,6 +11,8 @@ namespace Instrumovement
         /// </summary>
         public UdpWriter osc;
 
+        public UdpWriter filter;
+
         public bool isPlaying;
 
         public void AlterPitch(int pitch)
@@ -26,6 +28,7 @@ namespace Instrumovement
         {
             this.name = name;
             this.osc = new UdpWriter(oscHost, oscPort);
+            this.filter = new UdpWriter(oscHost, 9001);
             isPlaying = false;
         }
 

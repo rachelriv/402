@@ -8,7 +8,7 @@
     using Instrumovement.Drawing;
     using Instrumovement.BodyTracking;
     using System.Collections.Generic;
-
+    using Ventuz.OSC;
     /// <summary>
     /// Interaction logic for MainWindow
     /// </summary>
@@ -294,15 +294,23 @@
                         {
                             PlayFastNoteForJointPair(jointPair);
                         }
-                        else if (relativeJointVelocity > .3 && (jointPair == steadyMovingJointPairs["shoulderHandLeft"] || jointPair == steadyMovingJointPairs["shoulderHandRight"]))
+                       /* else if (relativeJointVelocity > .2 && (steadyMovingJointPairs["shoulderHandLeft"] == jointPair || steadyMovingJointPairs["shoulderHandRight"] == jointPair))
                         {
                             PlaySlowNoteForJointPair(jointPair);
+                        }*/
+                        else if (steadyMovingJointPairs["shoulderHandLeft"] == jointPair)
+                        {
+                            PlaySlowNoteForJointPair(jointPair);
+
                         }
                         else
                         {
                             StopInstrumentFor(jointPair);
+
                         }
+
                     }
+
 
 
 
@@ -342,14 +350,17 @@
 
         private void PlaySlowNoteForJointPair(Tuple<JointType, JointType> jointPair)
         {
-            if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
-            {
+       //     if (!instrumentsForJointPair[jointPair]["Slow"].isPlaying)
+         //   {
                 if (instrumentsForJointPair[jointPair]["Fast"].isPlaying)
                 {
                     instrumentsForJointPair[jointPair]["Fast"].StopNote();
                 }
+                int pitch = (new Random()).Next(100);
                 instrumentsForJointPair[jointPair]["Slow"].PlayNote(60, 127, 500, 1);
-            }
+           // }
+         //   else
+          //  {
         }
 
         private void PlayFastNoteForJointPair(Tuple<JointType, JointType> jointPair)
