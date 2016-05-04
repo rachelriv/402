@@ -8,7 +8,30 @@ namespace Instrumovement.Music
 {
     class SoundCreator
     {
-        public static void Map()
+        // plays fast note if relative velocity (in meters) is greater than this threshold
+        private const double FAST_NOTE_MIN_THRESHOLD = 2.0;
+
+        // plays (and sustains) slow note if relative velocity (in meters) is greater than this threshold
+        // but less than the minimum threshold for fast notes
+        private const double SLOW_NOTE_MIN_THRESHOLD = .2;
+
+        // pitch range we want our notes to fall in
+        private const int PITCH_RANGE = 30;
+
+        // minimum pitch of range
+        private const int MIN_PITCH = 50;
+
+        // default pitch for when the pitch of the note is NOT a function of a joint's position along the Y-axis
+        private const int DEFAULT_PITCH = 60;
+
+        // default velocity of all notes played
+        private const int DEFAULT_VELOCITY = 127;
+
+        // default duration of all notes played
+        private const int DEFAULT_DURATION = 50;
+
+
+        public static void Create()
         {
             foreach (Tuple<JointType, JointType> jointPair in MainWindow.steadyMovingJointPairs.Values)
             {
@@ -18,12 +41,14 @@ namespace Instrumovement.Music
                 }
                 else {
                     double relativeJointVelocity = VelocityComputer.GetRelativeVelocity(jointPair);
-                    if (relativeJointVelocity > 2.0)
+                    if (relativeJointVelocity > FAST_NOTE_MIN_THRESHOLD)
                     {
                         PlayNoteForJointPair(jointPair, "Fast");
                     }
-                    else if ((MainWindow.steadyMovingJointPairs["shoulderHandLeft"] == jointPair || MainWindow.steadyMovingJointPairs["shoulderHandRight"] == jointPair) && relativeJointVelocity > .2 && MainWindow.currentBody.HandRightState == HandState.Open)
+                    else if (isShoulderHandPair(jointPair)  && relativeJointVelocity > SLOW_NOTE_MIN_THRESHOLD)
                     {
+                        // only play slow notes for arm movements
+                        // (becomes cacophony of sounds if leg movements are included)
                         PlayNoteForJointPair(jointPair, "Slow");
                     }
                     else
@@ -34,8 +59,11 @@ namespace Instrumovement.Music
             }
         }
 
-
-
+        private static bool isShoulderHandPair(Tuple<JointType, JointType> jointPair)
+        {
+            return MainWindow.steadyMovingJointPairs["shoulderHandLeft"] == jointPair || 
+                   MainWindow.steadyMovingJointPairs["shoulderHandRight"] == jointPair;
+        }
 
         private static void StopInstrumentFor(Tuple<JointType, JointType> jointPair)
         {
@@ -66,11 +94,25 @@ namespace Instrumovement.Music
                 {
                     MainWindow.instrumentsForJointPair[jointPair][oppositeNoteType].StopNote();
                 }
-                int pitch = noteTypeIsFast ? ((int)(MainWindow.currentBody.Joints[JointType.HandLeft].Position.Y * 30) + 80) : 60;
+                // the pitch for a fast note is dependent on the Y position of the moving joint
+                int pitch = noteTypeIsFast ? ConvertYPositionToPitch(jointPair.Item2) : DEFAULT_PITCH;
+              
+                // the note will be sustained if slow note, and not sustain if fast note 
                 int sustain = noteTypeIsFast ? 0 : 1;
-                MainWindow.instrumentsForJointPair[jointPair][noteType].PlayNote(pitch, 127, 50, sustain);
+
+                MainWindow.instrumentsForJointPair[jointPair][noteType].PlayNote(pitch, DEFAULT_VELOCITY, DEFAULT_DURATION, sustain);
             }
         }
 
+
+        /// <summary>
+        /// Converts Y position of moving joint (value between 0 and 1) to an int denoting pitch (value between 0 and 127)
+        /// </summary>
+        /// <param name="movingJoint"></param>
+        /// <returns></returns>
+        private static int ConvertYPositionToPitch(JointType movingJoint)
+        {
+            return ((int)(MainWindow.currentBody.Joints[JointType.HandLeft].Position.Y * PITCH_RANGE) + PITCH_RANGE + MIN_PITCH);
+        }
     }
 }

@@ -9,16 +9,22 @@ namespace Instrumovement.BodyTracking
     /// </summary>
     public class JointRecords
     {
+        /// <summary>
+        /// A mapping of joint types to a list of previous timed positions of that joint type
+        /// </summary>
         private Dictionary<JointType, List<TimedPosition>> previousPositionsOf;
+
+        /// <summary>
+        /// Max number of positions we keep at any given time (bounded queue)
+        /// </summary>
+        private const int MAX_NUMBER_OF_POSITIONS = 5;
 
         public JointRecords()
         {
             previousPositionsOf = new Dictionary<JointType, List<TimedPosition>>();
         }
 
-        private const int MAX_NUMBER_OF_POSITIONS = 5;
-
-        public void AddPosition(JointType joint, TimedPosition timedPosition)
+        private void AddPosition(JointType joint, TimedPosition timedPosition)
         {
             if (previousPositionsOf.ContainsKey(joint))
             {
@@ -44,7 +50,6 @@ namespace Instrumovement.BodyTracking
                 TimedPosition timedPositionOfJoint = new TimedPosition(currentTime, CopyPosition(MainWindow.currentBody.Joints[jointType].Position));
                 this.AddPosition(jointType, timedPositionOfJoint);
             }
-
         }
 
         private static CameraSpacePoint CopyPosition(CameraSpacePoint position)

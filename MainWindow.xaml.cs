@@ -22,7 +22,12 @@
         public static JointRecords jointRecords;
 
         /// <summary>
-        /// Mapping of steady/moving joint velocity to instrument numbers
+        /// Pairs of joints (we compute relative velocity of moving joint in reference to steady joint)
+        /// </summary>
+        public static Dictionary<String, Tuple<JointType, JointType>> steadyMovingJointPairs = null;
+
+        /// <summary>
+        /// Mapping of steady/moving joint velocity to instruments
         /// </summary>
         public static Dictionary<Tuple<JointType, JointType>, Dictionary<String, Instrument>> instrumentsForJointPair = null;
 
@@ -71,11 +76,6 @@
         /// Time signature object that establishes the rhythm of the music
         /// </summary>
         private static TimeSignature timeSignature;
-
-        /// <summary>
-        /// Pairs of joints used for calculating relative velocity
-        /// </summary>
-        public static Dictionary<String, Tuple<JointType, JointType>> steadyMovingJointPairs = null;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -150,7 +150,6 @@
             {
                 return this.statusText;
             }
-
             set
             {
                 if (this.statusText != value)
@@ -244,14 +243,14 @@
                 jointRecords.AddRecordForEachJoint(currentTime);
 
                 // Main sound mapping logic
-                // First, establish the time signature (with specific gestures)
-                // Then, do general sound-movement mappings
                 if (!timeSignature.isEstablished)
                 {
+                    // First, establish the time signature (with specific gestures)
                     timeSignature.CheckForBeats();
                 }
                 else
                 {
+                    // Then, do general sound-movement mappings
                     SoundCreator.Create();
                 }
 
